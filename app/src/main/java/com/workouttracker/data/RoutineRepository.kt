@@ -17,6 +17,14 @@ import kotlinx.coroutines.flow.Flow
 /** Thrown when a save would break a rule the editor should already have enforced. */
 class RoutineRejected(message: String) : IllegalArgumentException(message)
 
+sealed interface RenameResult {
+    data class Renamed(val name: String) : RenameResult
+    /** Another exercise already has this name (ignoring case). */
+    data object NameTaken : RenameResult
+    data object Invalid : RenameResult
+    data object NotFound : RenameResult
+}
+
 class RoutineRepository(private val db: AppDatabase) {
     private val dao = db.routineDao()
 
@@ -51,6 +59,21 @@ class RoutineRepository(private val db: AppDatabase) {
     }
 
     suspend fun countRoutines(): Int = dao.countRoutines()
+
+    /**
+     * Renames an exercise everywhere: every routine that uses it and all logged history (which refers to it by id).
+     * Refuses a name another exercise already has, rather than silently merging the two.
+     */
+    suspend fun renameExercise(exerciseId: Long, newName: String): RenameResult {
+        val name = RoutineEditing.cleanExerciseName(newName) ?: return RenameResult.Invalid
+        return db.withTransaction {
+            dao.getExercises(listOf(exerciseId)).firstOrNull() ?: return@withTransaction RenameResult.NotFound
+            val clash = dao.findExerciseByName(name)
+            if (clash != null && clash.id != exerciseId) return@withTransaction RenameResult.NameTaken
+            dao.renameExercise(exerciseId, name)
+            RenameResult.Renamed(name)
+        }
+    }
 
     /**
      * Validates and stores [draft], replacing the routine's exercise list. Returns the routine id.

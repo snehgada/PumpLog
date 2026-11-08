@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.workouttracker.AppContainer
+import com.workouttracker.data.ReopenResult
 import com.workouttracker.data.SessionRepository
 import com.workouttracker.data.SkipResult
 import com.workouttracker.data.StartResult
@@ -40,6 +41,8 @@ data class TodayUiState(
     val skipNotice: SkipNotice? = null,
     /** A workout that was started and not finished. */
     val inProgress: SessionEntity? = null,
+    /** The last workout finished today, which can still be reopened. */
+    val finishedToday: SessionEntity? = null,
     /** One-shot: open this workout's screen. */
     val openWorkout: Long? = null,
 )
@@ -53,13 +56,18 @@ class TodayViewModel(
     private val skipNotice = MutableStateFlow<SkipNotice?>(null)
     private val openWorkout = MutableStateFlow<Long?>(null)
 
+    private val workouts = combine(
+        sessions.observeInProgress(),
+        sessions.observeLastFinishedOn(LocalDate.now(clock)),
+    ) { open, finished -> open to finished }
+
     val state: StateFlow<TodayUiState> = combine(
         repository.observeRoutineSummaries(),
         repository.observeLatestRotationEntry(),
         repository.observeLatestEntryPerRoutine(),
         skipNotice,
-        sessions.observeInProgress(),
-    ) { routines, latest, perRoutine, notice, inProgress ->
+        workouts,
+    ) { routines, latest, perRoutine, notice, (inProgress, finishedToday) ->
         val order = routines.map { it.id }
         val nextId = Rotation.next(order, latest?.routineId)
         val lastStatus = perRoutine.mapNotNull { s -> s.routineId?.let { it to s.status } }.toMap()
@@ -73,6 +81,7 @@ class TodayViewModel(
             badges = order.zip(Badges.labels(routines.map { it.name })).toMap(),
             skipNotice = notice,
             inProgress = inProgress,
+            finishedToday = finishedToday,
         )
     }.combine(openWorkout) { s, open -> s.copy(openWorkout = open) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
@@ -90,6 +99,17 @@ class TodayViewModel(
 
     fun resume() {
         state.value.inProgress?.let { openWorkout.value = it.id }
+    }
+
+    /** Puts today's finished workout back in progress and opens it. */
+    fun reopen(sessionId: Long) {
+        viewModelScope.launch {
+            when (val result = sessions.reopen(sessionId)) {
+                is ReopenResult.Reopened -> openWorkout.value = result.sessionId
+                is ReopenResult.AlreadyInProgress -> openWorkout.value = result.sessionId
+                ReopenResult.NotReopenable -> Unit
+            }
+        }
     }
 
     fun workoutOpened() {

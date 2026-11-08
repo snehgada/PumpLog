@@ -67,6 +67,14 @@ object Weeks {
         )
     }
 
+    /** "3h 11m", "58m", "0m". */
+    fun formatDuration(duration: Duration): String {
+        val minutes = duration.toMinutes().coerceAtLeast(0)
+        val h = minutes / 60
+        val m = minutes % 60
+        return if (h > 0) "${h}h ${m}m" else "${m}m"
+    }
+
     /** The last [count] weeks ending with the week of [today], oldest first. */
     fun recent(today: LocalDate, count: Int, sessions: List<SessionStats>): List<WeekSummary> {
         require(count > 0) { "count must be positive" }

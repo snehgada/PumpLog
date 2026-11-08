@@ -5,6 +5,53 @@
     <!-- Tabs -->
     <string name="tab_today">Today</string>
     <string name="tab_routines">Routines</string>
+    <string name="tab_history">History</string>
+    <string name="tab_progress">Progress</string>
+
+    <!-- History -->
+    <string name="this_week">This week</string>
+    <string name="week_title">Week</string>
+    <string name="previous_week">Previous week</string>
+    <string name="next_week">Next week</string>
+    <string name="log_past_workout">Log a past workout</string>
+    <string name="log_past_when">Which day?</string>
+    <string name="log_past_which">Which routine?</string>
+    <string name="next">Next</string>
+    <string name="workouts_this_week">WORKOUTS THIS WEEK</string>
+    <string name="no_workouts_this_week">No workouts this week.</string>
+    <string name="day_done">%1$s: workout</string>
+    <string name="day_skipped">%1$s: skipped</string>
+    <string name="day_rest">%1$s: rest</string>
+    <string name="stat_workouts">Workouts</string>
+    <string name="stat_skipped">%1$d skipped</string>
+    <string name="stat_sets">Sets</string>
+    <string name="stat_volume">Volume</string>
+    <string name="stat_time">Time</string>
+    <string name="last_week_value">Last wk %1$s</string>
+    <string name="metric_sets">Sets</string>
+    <string name="metric_volume">Volume</string>
+    <string name="metric_days">Days</string>
+    <string name="skipped_row">Skipped · rotation moved on</string>
+    <string name="in_progress_row">In progress</string>
+
+    <!-- Progress -->
+    <string name="progress_title">Progress</string>
+    <string name="progress_subtitle">Every exercise you\'ve logged, most recent first.</string>
+    <string name="progress_empty">Finish a workout to see your progress here.</string>
+    <string name="progress_row_meta">%1$s · last %2$s</string>
+    <string name="metric_e1rm">Est. 1RM</string>
+    <string name="metric_top_set">Top set</string>
+    <string name="since_first">%1$s since the first</string>
+    <string name="chart_description">%1$s per workout, oldest to newest</string>
+    <string name="best_set">Best set</string>
+    <string name="best_volume">Best volume</string>
+    <string name="pr_set_on">PR set on</string>
+    <string name="pr_badge">PERSONAL RECORD</string>
+    <string name="history_label">HISTORY</string>
+    <plurals name="workout_count">
+        <item quantity="one">%d workout</item>
+        <item quantity="other">%d workouts</item>
+    </plurals>
 
     <!-- Common -->
     <string name="back">Back</string>
@@ -47,6 +94,13 @@
     <string name="in_progress">IN PROGRESS</string>
     <string name="started_at">Started at %1$s</string>
     <string name="resume_workout">Resume workout</string>
+    <string name="finished_at">✓ %1$s finished at %2$s</string>
+    <string name="done">Done</string>
+    <string name="editing_workout_on">Editing · %1$s</string>
+    <string name="delete_workout">Delete workout</string>
+    <string name="delete_workout_title">Delete this workout?</string>
+    <string name="delete_workout_body">%1$s on %2$s and all its sets will be removed. This can\'t be undone.</string>
+    <string name="reopen">Reopen</string>
 
     <!-- Workout -->
     <string name="finish">Finish</string>
@@ -135,6 +189,11 @@
     <string name="alternative_label">Alternative (optional)</string>
     <string name="alternative_short">Alt: %1$s</string>
     <string name="remove_exercise">Remove exercise</string>
+    <string name="rename_exercise">Rename exercise</string>
+    <string name="rename">Rename</string>
+    <string name="rename_everywhere">Changes the name in every routine and in your history.</string>
+    <string name="rename_invalid">Use 1–60 characters</string>
+    <string name="rename_taken">You already have an exercise with this name</string>
     <string name="expand">Show sets</string>
     <string name="collapse">Hide sets</string>
     <string name="delete_routine">Delete routine</string>

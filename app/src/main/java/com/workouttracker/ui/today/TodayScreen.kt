@@ -73,6 +73,7 @@ fun TodayRoute(
         state = state,
         onStart = viewModel::start,
         onResume = viewModel::resume,
+        onReopen = viewModel::reopen,
         onSkip = viewModel::skip,
         onUndoSkip = viewModel::undoSkip,
         onSkipNoticeShown = viewModel::skipNoticeShown,
@@ -86,6 +87,7 @@ fun TodayScreen(
     state: TodayUiState,
     onStart: (routineId: Long) -> Unit,
     onResume: () -> Unit,
+    onReopen: (sessionId: Long) -> Unit,
     onSkip: (routineId: Long) -> Unit,
     onUndoSkip: (sessionId: Long) -> Unit,
     onSkipNoticeShown: () -> Unit,
@@ -139,6 +141,9 @@ fun TodayScreen(
                             onPickAnother = { pickingAnother = true },
                         )
                     }
+                }
+                state.finishedToday?.let { done ->
+                    item { FinishedTodayRow(done.routineName, done.finishedAt, onReopen = { onReopen(done.id) }) }
                 }
             }
             if (state.routines.isNotEmpty()) {
@@ -194,6 +199,28 @@ private fun InProgressCard(routineName: String, startedAt: Instant?, onResume: (
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
             ) { Text(stringResource(R.string.resume_workout), style = MaterialTheme.typography.labelLarge) }
+        }
+    }
+}
+
+@Composable
+private fun FinishedTodayRow(routineName: String, finishedAt: Instant?, onReopen: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val time = remember(finishedAt) {
+        finishedAt?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)).orEmpty()
+    }
+    Surface(shape = RoundedCornerShape(18.dp), color = colors.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        ) {
+            Text(
+                stringResource(R.string.finished_at, routineName, time),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onReopen) { Text(stringResource(R.string.reopen)) }
         }
     }
 }

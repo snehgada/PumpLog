@@ -104,7 +104,7 @@ fun WorkoutRoute(container: AppContainer, sessionId: Long, onClose: () -> Unit) 
     val options by viewModel.exerciseOptions.collectAsStateWithLifecycle()
 
     LaunchedEffect(state.closed) { if (state.closed) onClose() }
-    AskForNotifications()
+    if (!state.loading && !state.editing) AskForNotifications()
 
     if (state.loading || state.closed) {
         Box(Modifier.background(MaterialTheme.colorScheme.background))
@@ -138,7 +138,11 @@ private fun WorkoutScreen(
 ) {
     val colors = MaterialTheme.colorScheme
     var confirmFinish by rememberSaveable { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    val dateText = remember(state.date) {
+        state.date?.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM yyyy", java.util.Locale.getDefault())).orEmpty()
+    }
     val resources = LocalContext.current.resources
     val now by rememberTicker()
 
@@ -162,7 +166,7 @@ private fun WorkoutScreen(
                     Column {
                         Text(state.routineName, style = MaterialTheme.typography.titleLarge)
                         Text(
-                            elapsed(state.startedAt, now),
+                            if (state.editing) stringResource(R.string.editing_workout_on, dateText) else elapsed(state.startedAt, now),
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.onSurfaceVariant,
                         )
@@ -170,10 +174,16 @@ private fun WorkoutScreen(
                 },
                 actions = {
                     OutlinedButton(
-                        onClick = { confirmFinish = true },
+                        onClick = {
+                            if (state.editing) {
+                                onBack()
+                            } else {
+                                confirmFinish = true
+                            }
+                        },
                         border = BorderStroke(1.dp, colors.primary),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) { Text(stringResource(R.string.finish), color = colors.primary) }
+                    ) { Text(stringResource(if (state.editing) R.string.done else R.string.finish), color = colors.primary) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.background),
             )
@@ -200,8 +210,14 @@ private fun WorkoutScreen(
                 }
             }
             item {
-                TextButton(onClick = { confirmFinish = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Text(stringResource(R.string.finish_workout), color = colors.onSurface)
+                if (state.editing) {
+                    TextButton(onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        Text(stringResource(R.string.delete_workout), color = colors.error)
+                    }
+                } else {
+                    TextButton(onClick = { confirmFinish = true }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        Text(stringResource(R.string.finish_workout), color = colors.onSurface)
+                    }
                 }
             }
         }
@@ -212,6 +228,17 @@ private fun WorkoutScreen(
         state.exercises.firstOrNull { it.plannedId == plannedId }?.let { exercise ->
             SwapDialog(exercise, options, onPick = { vm.swapTo(plannedId, it) }, onNew = { name -> vm.swapToNew(plannedId, name, exercise.performed.kind) }, onDismiss = vm::closeSwap)
         }
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.delete_workout_title)) },
+            text = { Text(stringResource(R.string.delete_workout_body, state.routineName, dateText)) },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; vm.deleteWorkout() }) { Text(stringResource(R.string.delete), color = colors.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } },
+        )
     }
     if (confirmFinish) {
         FinishDialog(

@@ -118,6 +118,10 @@ object RoutineEditing {
         )
     }
 
+    /** A usable exercise name: trimmed, 1 to [MAX_EXERCISE_NAME] characters, or null. */
+    fun cleanExerciseName(name: String): String? =
+        name.trim().takeIf { it.isNotEmpty() && it.length <= MAX_EXERCISE_NAME }
+
     /** Keeps only digits, at most 3 of them: what a rep field accepts while typing. */
     fun filterRepInput(text: String): String = text.filter { it in '0'..'9' }.take(MAX_REP_INPUT)
 

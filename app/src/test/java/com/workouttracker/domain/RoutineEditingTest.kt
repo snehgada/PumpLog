@@ -94,6 +94,12 @@ class RoutineEditingTest {
         assertEquals(full, RoutineEditing.addSet(full))
     }
 
+    @Test fun `exercise names are trimmed and bounded`() {
+        assertEquals("Dumbbell Pullover", RoutineEditing.cleanExerciseName("  Dumbbell Pullover "))
+        assertNull(RoutineEditing.cleanExerciseName("   "))
+        assertNull(RoutineEditing.cleanExerciseName("x".repeat(61)))
+    }
+
     @Test fun `scheme text`() {
         assertEquals("3 × 8–10", RoutineEditing.scheme(List(3) { SetDraft("8", "10") }))
         assertEquals("2 × 10+", RoutineEditing.scheme(List(2) { SetDraft("10", "") }))

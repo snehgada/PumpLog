@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.workouttracker.data.db.AppDatabase
 import com.workouttracker.data.db.RoutineSummary
 import com.workouttracker.data.db.SessionEntity
+import com.workouttracker.data.db.SessionStatsRow
 import com.workouttracker.data.seed.SeedRoutines
 import com.workouttracker.data.seed.Seeder
 import com.workouttracker.data.settings.SettingsRepository
@@ -14,6 +15,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
+
+fun SessionStatsRow.toStats() = SessionStats(date, status, startedAt, finishedAt, workingSets, volumeGramReps)
 
 /** Result of trying to skip a routine. */
 sealed interface SkipResult {
@@ -67,7 +70,8 @@ class WorkoutRepository(
     suspend fun undoSkip(sessionId: Long): Boolean = sessionDao.deleteSkip(sessionId) == 1
 
     fun observeSessionStats(from: LocalDate, to: LocalDate): Flow<List<SessionStats>> =
-        sessionDao.observeStats(from, to).map { rows ->
-            rows.map { SessionStats(it.date, it.status, it.startedAt, it.finishedAt, it.workingSets, it.volumeGramReps) }
-        }
+        observeSessionRows(from, to).map { rows -> rows.map { it.toStats() } }
+
+    /** Every workout and skip between two dates (inclusive), with per-workout sets and volume. */
+    fun observeSessionRows(from: LocalDate, to: LocalDate): Flow<List<SessionStatsRow>> = sessionDao.observeStats(from, to)
 }

@@ -40,6 +40,13 @@ sealed interface StartResult {
     data object RoutineNotFound : StartResult
 }
 
+sealed interface ReopenResult {
+    data class Reopened(val sessionId: Long) : ReopenResult
+    data class AlreadyInProgress(val sessionId: Long) : ReopenResult
+    /** Not a finished workout (already open, deleted, or a skip). */
+    data object NotReopenable : ReopenResult
+}
+
 /** Thrown when a write would break a rule the screen should already enforce. */
 class SessionRejected(message: String) : IllegalArgumentException(message)
 
@@ -91,7 +98,7 @@ class SessionRepository(private val db: AppDatabase) {
                     restSec = row.restSec,
                     targets = targetsByRow[row.id].orEmpty().map { SetTarget(it.minReps, it.maxReps, it.note) },
                     alternative = row.alternativeExerciseId?.let { exercises[it]?.toRef() },
-                    lastTime = lastTime(exercise.id, sessionId),
+                    lastTime = lastTime(exercise.id, session),
                 )
             },
         )
@@ -118,7 +125,7 @@ class SessionRepository(private val db: AppDatabase) {
         if (!LiveSessionRules.isValid(segments)) throw SessionRejected("invalid set")
         if (setIndex !in 0 until RoutineEditing.MAX_SETS + LiveSessionRules.MAX_EXTRA_SETS) throw SessionRejected("set index out of range")
         db.withTransaction {
-            requireInProgress(sessionId)
+            requireEditable(sessionId)
             val cleanNote = LiveSessionRules.cleanNote(note)
             val existing = sets.findSet(sessionId, plannedExerciseId, setIndex)
             val id = if (existing == null) {
@@ -143,13 +150,13 @@ class SessionRepository(private val db: AppDatabase) {
     }
 
     suspend fun unlogSet(sessionId: Long, loggedSetId: Long) = db.withTransaction {
-        requireInProgress(sessionId)
+        requireEditable(sessionId)
         sets.deleteSet(loggedSetId, sessionId)
     }
 
     /** Swaps an exercise for the rest of this workout; sets already logged move with it. */
     suspend fun swap(sessionId: Long, plannedExerciseId: Long, performedExerciseId: Long) = db.withTransaction {
-        requireInProgress(sessionId)
+        requireEditable(sessionId)
         sets.setPerformedExercise(sessionId, plannedExerciseId, performedExerciseId)
     }
 
@@ -165,18 +172,56 @@ class SessionRepository(private val db: AppDatabase) {
 
     suspend fun finish(sessionId: Long, now: Instant): Boolean = sessions.finish(sessionId, now) == 1
 
+    /** Re-opens a finished workout so more sets can be logged. Only one workout may be open at a time. */
+    suspend fun reopen(sessionId: Long): ReopenResult = db.withTransaction {
+        sessions.getInProgress()?.let { return@withTransaction ReopenResult.AlreadyInProgress(it.id) }
+        if (sessions.reopen(sessionId) == 1) ReopenResult.Reopened(sessionId) else ReopenResult.NotReopenable
+    }
+
+    fun observeLastFinishedOn(date: LocalDate): Flow<SessionEntity?> = sessions.observeLastFinishedOn(date)
+
+    /**
+     * Records a workout you forgot to log, as finished on [date] (no times). Returns its id so its sets can be
+     * filled in. It only moves the rotation if it is the most recent entry.
+     */
+    suspend fun logPast(routineId: Long, date: LocalDate, today: LocalDate): Long {
+        if (date.isAfter(today) || date.isBefore(today.minusDays(MAX_PAST_DAYS))) throw SessionRejected("date out of range")
+        return db.withTransaction {
+            val routine = routines.getRoutine(routineId) ?: throw SessionRejected("routine not found")
+            sessions.insertSession(
+                SessionEntity(
+                    routineId = routine.id,
+                    routineName = routine.name,
+                    status = SessionStatus.DONE,
+                    date = date,
+                    startedAt = null,
+                    finishedAt = null,
+                ),
+            )
+        }
+    }
+
+    /** Deletes a workout and its sets for good. Skips are undone with WorkoutRepository.undoSkip. */
+    suspend fun deleteWorkout(sessionId: Long): Boolean = sessions.deleteWorkout(sessionId) == 1
+
+    companion object {
+        /** How far back a forgotten workout can be logged. */
+        const val MAX_PAST_DAYS = 365L
+    }
+
     suspend fun discard(sessionId: Long): Boolean = sessions.discardInProgress(sessionId) == 1
 
-    private suspend fun lastTime(exerciseId: Long, currentSessionId: Long): List<PerformedSet> {
-        val lastSession = sets.lastSessionWith(exerciseId, currentSessionId) ?: return emptyList()
+    private suspend fun lastTime(exerciseId: Long, current: SessionEntity): List<PerformedSet> {
+        val lastSession = sets.lastSessionBefore(exerciseId, current.id, current.date) ?: return emptyList()
         val rows = sets.setsFor(lastSession, exerciseId)
         val segments = sets.segmentsFor(rows.map { it.id }).groupBy { it.loggedSetId }
         return rows.map { it.toPerformed(segments[it.id].orEmpty()) }
     }
 
-    private suspend fun requireInProgress(sessionId: Long) {
-        val session = sessions.getSession(sessionId)
-        if (session?.status != SessionStatus.IN_PROGRESS) throw SessionRejected("workout is not in progress")
+    /** Sets can be changed in an open workout or a finished one (editing history); never in a skip. */
+    private suspend fun requireEditable(sessionId: Long) {
+        val status = sessions.getSession(sessionId)?.status
+        if (status != SessionStatus.IN_PROGRESS && status != SessionStatus.DONE) throw SessionRejected("workout can't be edited")
     }
 
     private fun ExerciseEntity.toRef() = ExerciseRef(id, name, kind)

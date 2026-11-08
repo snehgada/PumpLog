@@ -65,6 +65,12 @@ class WeeksTest {
         assertEquals(DayStatus.DONE, week.days[1])
     }
 
+    @Test fun `duration labels`() {
+        assertEquals("3h 11m", Weeks.formatDuration(Duration.ofMinutes(191)))
+        assertEquals("58m", Weeks.formatDuration(Duration.ofMinutes(58)))
+        assertEquals("0m", Weeks.formatDuration(Duration.ZERO))
+    }
+
     @Test fun `recent weeks are oldest first and end with this week`() {
         val weeks = Weeks.recent(LocalDate.of(2026, 11, 8), 8, emptyList())
         assertEquals(8, weeks.size)

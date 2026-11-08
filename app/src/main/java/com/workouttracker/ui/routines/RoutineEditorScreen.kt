@@ -220,6 +220,36 @@ private fun RoutineEditorScreen(
         }
     }
 
+    state.rename?.let { rename ->
+        AlertDialog(
+            onDismissRequest = vm::cancelRename,
+            title = { Text(stringResource(R.string.rename_exercise)) },
+            text = {
+                OutlinedTextField(
+                    value = rename.text,
+                    onValueChange = vm::renameText,
+                    label = { Text(stringResource(R.string.exercise_name)) },
+                    singleLine = true,
+                    isError = rename.error != null,
+                    supportingText = {
+                        Text(
+                            when (rename.error) {
+                                RenameError.INVALID -> stringResource(R.string.rename_invalid)
+                                RenameError.TAKEN -> stringResource(R.string.rename_taken)
+                                null -> if (rename.global) stringResource(R.string.rename_everywhere) else ""
+                            },
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = vm::confirmRename, enabled = !rename.busy) { Text(stringResource(R.string.rename)) }
+            },
+            dismissButton = { TextButton(onClick = vm::cancelRename) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
     if (addingExercise) {
         AddExerciseDialog(
             options = options,
@@ -381,8 +411,13 @@ private fun ExerciseCard(
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    TextButton(onClick = { vm.removeExercise(exercise.key) }) {
-                        Text(stringResource(R.string.remove_exercise), color = colors.error)
+                    Row {
+                        TextButton(onClick = { vm.startRename(exercise.key) }) {
+                            Text(stringResource(R.string.rename_exercise))
+                        }
+                        TextButton(onClick = { vm.removeExercise(exercise.key) }) {
+                            Text(stringResource(R.string.remove_exercise), color = colors.error)
+                        }
                     }
                 }
             }

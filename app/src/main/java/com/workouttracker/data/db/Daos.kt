@@ -20,6 +20,7 @@ data class RoutineSummary(
 /** Row backing [com.workouttracker.domain.SessionStats]. */
 data class SessionStatsRow(
     val sessionId: Long,
+    val routineName: String,
     val date: LocalDate,
     val status: SessionStatus,
     val startedAt: Instant?,
@@ -82,6 +83,10 @@ interface RoutineDao {
     @Query("UPDATE routine SET name = :name WHERE id = :id")
     suspend fun renameRoutine(id: Long, name: String)
 
+    /** Logged sets refer to the exercise by id, so history follows the new name. */
+    @Query("UPDATE exercise SET name = :name WHERE id = :id")
+    suspend fun renameExercise(id: Long, name: String): Int
+
     @Query("UPDATE routine SET rotationOrder = :order WHERE id = :id")
     suspend fun setRotationOrder(id: Long, order: Int)
 
@@ -99,6 +104,24 @@ interface RoutineDao {
 }
 
 data class RoutineExerciseName(val routineId: Long, val name: String)
+
+data class ExerciseHistoryRow(
+    val id: Long,
+    val name: String,
+    val kind: com.workouttracker.domain.ExerciseKind,
+    val sessions: Int,
+    val lastDate: LocalDate,
+)
+
+data class ExerciseSetRow(
+    val sessionId: Long,
+    val date: LocalDate,
+    val loggedSetId: Long,
+    val setIndex: Int,
+    val type: com.workouttracker.domain.SetType,
+    val note: String?,
+    val performedExerciseId: Long,
+)
 
 @Dao
 interface LoggedSetDao {
@@ -139,17 +162,58 @@ interface LoggedSetDao {
     )
     fun observeSegments(sessionId: Long): Flow<List<SetSegmentEntity>>
 
-    /** The most recent finished workout, other than [excludeSessionId], that logged [exerciseId]. */
+    /**
+     * The most recent finished workout that logged [exerciseId] before workout [sessionId] (which is on [date]).
+     * For a workout in progress that is simply the latest; for a past workout being edited it is the one before it.
+     */
     @Query(
         """
         SELECT s.id FROM session s
         JOIN logged_set ls ON ls.sessionId = s.id
-        WHERE s.status = 'DONE' AND ls.plannedExerciseId = :exerciseId AND s.id != :excludeSessionId
+        WHERE s.status = 'DONE' AND ls.plannedExerciseId = :exerciseId AND s.id != :sessionId
+          AND (s.date < :date OR (s.date = :date AND s.id < :sessionId))
         ORDER BY s.date DESC, s.id DESC
         LIMIT 1
         """,
     )
-    suspend fun lastSessionWith(exerciseId: Long, excludeSessionId: Long): Long?
+    suspend fun lastSessionBefore(exerciseId: Long, sessionId: Long, date: LocalDate): Long?
+
+    /** Exercises with at least one finished workout, most recently trained first. */
+    @Query(
+        """
+        SELECT e.id AS id, e.name AS name, e.kind AS kind,
+            COUNT(DISTINCT s.id) AS sessions, MAX(s.date) AS lastDate
+        FROM exercise e
+        JOIN logged_set ls ON ls.plannedExerciseId = e.id
+        JOIN session s ON s.id = ls.sessionId
+        WHERE s.status = 'DONE'
+        GROUP BY e.id
+        ORDER BY lastDate DESC, e.name COLLATE NOCASE
+        """,
+    )
+    fun observeExercisesWithHistory(): Flow<List<ExerciseHistoryRow>>
+
+    @Query(
+        """
+        SELECT s.id AS sessionId, s.date AS date, ls.id AS loggedSetId, ls.setIndex AS setIndex, ls.type AS type,
+            ls.note AS note, ls.performedExerciseId AS performedExerciseId
+        FROM logged_set ls JOIN session s ON s.id = ls.sessionId
+        WHERE s.status = 'DONE' AND ls.plannedExerciseId = :exerciseId
+        ORDER BY s.date, s.id, ls.setIndex
+        """,
+    )
+    fun observeExerciseSets(exerciseId: Long): Flow<List<ExerciseSetRow>>
+
+    @Query(
+        """
+        SELECT seg.* FROM set_segment seg
+        JOIN logged_set ls ON ls.id = seg.loggedSetId
+        JOIN session s ON s.id = ls.sessionId
+        WHERE s.status = 'DONE' AND ls.plannedExerciseId = :exerciseId
+        ORDER BY seg.loggedSetId, seg.position
+        """,
+    )
+    fun observeExerciseSegments(exerciseId: Long): Flow<List<SetSegmentEntity>>
 
     @Query("SELECT * FROM logged_set WHERE sessionId = :sessionId AND plannedExerciseId = :exerciseId ORDER BY setIndex")
     suspend fun setsFor(sessionId: Long, exerciseId: Long): List<LoggedSetEntity>
@@ -204,9 +268,20 @@ interface SessionDao {
     @Query("UPDATE session SET status = 'DONE', finishedAt = :at WHERE id = :id AND status = 'IN_PROGRESS'")
     suspend fun finish(id: Long, at: Instant): Int
 
+    /** Puts a finished workout back in progress; the rotation steps back until it is finished again. */
+    @Query("UPDATE session SET status = 'IN_PROGRESS', finishedAt = NULL WHERE id = :id AND status = 'DONE'")
+    suspend fun reopen(id: Long): Int
+
+    @Query("SELECT * FROM session WHERE status = 'DONE' AND date = :date ORDER BY finishedAt DESC, id DESC LIMIT 1")
+    fun observeLastFinishedOn(date: LocalDate): Flow<SessionEntity?>
+
     /** Only an unfinished workout can be thrown away; its logged sets go with it (cascade). */
     @Query("DELETE FROM session WHERE id = :id AND status = 'IN_PROGRESS'")
     suspend fun discardInProgress(id: Long): Int
+
+    /** Deletes a finished or open workout (not a skip; those are undone separately). */
+    @Query("DELETE FROM session WHERE id = :id AND status IN ('DONE', 'IN_PROGRESS')")
+    suspend fun deleteWorkout(id: Long): Int
 
     /** Only skips can be undone this way; real workouts are never deleted by it. */
     @Query("DELETE FROM session WHERE id = :sessionId AND status = 'SKIPPED'")
@@ -214,7 +289,7 @@ interface SessionDao {
 
     @Query(
         """
-        SELECT s.id AS sessionId, s.date, s.status, s.startedAt, s.finishedAt,
+        SELECT s.id AS sessionId, s.routineName, s.date, s.status, s.startedAt, s.finishedAt,
             (SELECT COUNT(*) FROM logged_set ls
                 WHERE ls.sessionId = s.id AND ls.type != 'WARMUP') AS workingSets,
             (SELECT COALESCE(SUM(seg.reps * seg.weightGrams), 0) FROM logged_set ls

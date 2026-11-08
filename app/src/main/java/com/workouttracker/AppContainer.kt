@@ -1,6 +1,7 @@
 package com.workouttracker
 
 import android.content.Context
+import com.workouttracker.data.ProgressRepository
 import com.workouttracker.data.RoutineRepository
 import com.workouttracker.data.SessionRepository
 import com.workouttracker.timer.RestTimer
@@ -20,5 +21,6 @@ class AppContainer(context: Context) {
     val workoutRepository: WorkoutRepository by lazy { WorkoutRepository(database, settings) }
     val routineRepository: RoutineRepository by lazy { RoutineRepository(database) }
     val sessionRepository: SessionRepository by lazy { SessionRepository(database) }
+    val progressRepository: ProgressRepository by lazy { ProgressRepository(database) }
     val restTimer: RestTimer by lazy { RestTimer(appContext, clock) }
 }

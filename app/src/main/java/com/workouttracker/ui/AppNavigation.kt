@@ -1,14 +1,12 @@
 package com.workouttracker.ui
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -23,7 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -34,6 +32,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.workouttracker.AppContainer
 import com.workouttracker.R
+import com.workouttracker.ui.history.HistoryRoute
+import com.workouttracker.ui.progress.ExerciseProgressRoute
+import com.workouttracker.ui.progress.ProgressRoute
 import com.workouttracker.ui.routines.RoutineEditorRoute
 import com.workouttracker.ui.routines.RoutinesRoute
 import com.workouttracker.ui.today.TodayRoute
@@ -49,14 +50,21 @@ private object Routes {
     const val NEW_ROUTINE = "routine_new"
     const val SESSION_ARG = "sessionId"
     const val WORKOUT = "workout/{$SESSION_ARG}"
+    const val HISTORY = "history"
+    const val PROGRESS = "progress"
+    const val EXERCISE_ARG = "exerciseId"
+    const val EXERCISE = "exercise/{$EXERCISE_ARG}"
 
     fun editRoutine(id: Long) = "routine/$id"
     fun workout(sessionId: Long) = "workout/$sessionId"
+    fun exercise(id: Long) = "exercise/$id"
 }
 
-private enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
-    TODAY(Routes.TODAY, R.string.tab_today, Icons.Filled.Home),
-    ROUTINES(Routes.ROUTINES, R.string.tab_routines, Icons.AutoMirrored.Filled.List),
+private enum class Tab(val route: String, @StringRes val label: Int, @DrawableRes val icon: Int) {
+    TODAY(Routes.TODAY, R.string.tab_today, R.drawable.ic_tab_today),
+    HISTORY(Routes.HISTORY, R.string.tab_history, R.drawable.ic_tab_history),
+    PROGRESS(Routes.PROGRESS, R.string.tab_progress, R.drawable.ic_tab_progress),
+    ROUTINES(Routes.ROUTINES, R.string.tab_routines, R.drawable.ic_tab_routines),
 }
 
 @Composable
@@ -121,6 +129,22 @@ fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0) {
                 val id = entry.arguments?.getLong(Routes.SESSION_ARG) ?: return@composable
                 WorkoutRoute(container = container, sessionId = id, onClose = { navController.popBackStack() })
             }
+            composable(Routes.HISTORY) {
+                HistoryRoute(
+                    container = container,
+                    onOpenWorkout = { id -> navController.navigate(Routes.workout(id)) { launchSingleTop = true } },
+                )
+            }
+            composable(Routes.PROGRESS) {
+                ProgressRoute(container = container, onOpenExercise = { id -> navController.navigate(Routes.exercise(id)) })
+            }
+            composable(
+                Routes.EXERCISE,
+                arguments = listOf(navArgument(Routes.EXERCISE_ARG) { type = NavType.LongType }),
+            ) { entry ->
+                val id = entry.arguments?.getLong(Routes.EXERCISE_ARG) ?: return@composable
+                ExerciseProgressRoute(container = container, exerciseId = id, onBack = { navController.popBackStack() })
+            }
             composable(Routes.ROUTINES) {
                 RoutinesRoute(
                     container = container,
@@ -149,7 +173,7 @@ private fun BottomTabs(currentRoute: String?, onSelect: (Tab) -> Unit) {
             NavigationBarItem(
                 selected = currentRoute == tab.route,
                 onClick = { onSelect(tab) },
-                icon = { Icon(tab.icon, contentDescription = null) },
+                icon = { Icon(painterResource(tab.icon), contentDescription = null) },
                 label = { Text(stringResource(tab.label)) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.workouttracker.AppContainer
+import com.workouttracker.data.RenameResult
 import com.workouttracker.data.RoutineRejected
 import com.workouttracker.data.RoutineRepository
 import com.workouttracker.domain.DraftIssues
@@ -27,6 +28,11 @@ data class ExerciseOption(val id: Long, val name: String, val kind: ExerciseKind
 
 enum class EditorError { SAVE_FAILED, DELETE_FAILED }
 
+enum class RenameError { INVALID, TAKEN }
+
+/** The Rename exercise dialog. [global] is true when the exercise already exists, so the new name applies everywhere. */
+data class RenameState(val key: Long, val text: String, val global: Boolean, val error: RenameError? = null, val busy: Boolean = false)
+
 data class EditorUiState(
     val loading: Boolean = true,
     val isNew: Boolean = false,
@@ -43,6 +49,7 @@ data class EditorUiState(
     val error: EditorError? = null,
     /** Saved or deleted: the screen should close. */
     val finished: Boolean = false,
+    val rename: RenameState? = null,
 )
 
 /** What the Add exercise dialog hands back. Already validated by [AddExerciseInput.isValid]. */
@@ -185,6 +192,62 @@ class RoutineEditorViewModel(
     }
 
     fun clearError() = _state.update { it.copy(error = null) }
+
+    // ---- Rename ----
+
+    fun startRename(key: Long) {
+        val ex = _state.value.draft.exercises.firstOrNull { it.key == key } ?: return
+        _state.update { it.copy(rename = RenameState(key, ex.name, global = ex.exerciseId != null)) }
+    }
+
+    fun renameText(text: String) = _state.update { s ->
+        s.copy(rename = s.rename?.copy(text = text.take(RoutineEditing.MAX_EXERCISE_NAME), error = null))
+    }
+
+    fun cancelRename() = _state.update { it.copy(rename = null) }
+
+    fun confirmRename() {
+        val rename = _state.value.rename ?: return
+        if (rename.busy) return
+        val ex = _state.value.draft.exercises.firstOrNull { it.key == rename.key } ?: return cancelRename()
+        val newName = RoutineEditing.cleanExerciseName(rename.text)
+        if (newName == null) {
+            _state.update { it.copy(rename = rename.copy(error = RenameError.INVALID)) }
+            return
+        }
+        val exerciseId = ex.exerciseId
+        if (exerciseId == null) {
+            // Not saved yet: just this routine's draft changes.
+            edit { d -> d.copy(exercises = d.exercises.map { if (it.key == ex.key) it.copy(name = newName) else it }) }
+            _state.update { it.copy(rename = null) }
+            return
+        }
+        _state.update { it.copy(rename = rename.copy(busy = true)) }
+        viewModelScope.launch {
+            when (val result = repository.renameExercise(exerciseId, newName)) {
+                is RenameResult.Renamed -> {
+                    // Already stored; reflect it in both the draft and the saved baseline so it doesn't count as unsaved.
+                    original = original?.let { renamedIn(it, exerciseId, ex.name, result.name) }
+                    _state.update { s ->
+                        val draft = renamedIn(s.draft, exerciseId, ex.name, result.name)
+                        s.copy(draft = draft, issues = RoutineEditing.validate(draft), dirty = draft != original, rename = null)
+                    }
+                }
+                RenameResult.NameTaken -> _state.update { it.copy(rename = rename.copy(error = RenameError.TAKEN, busy = false)) }
+                RenameResult.Invalid -> _state.update { it.copy(rename = rename.copy(error = RenameError.INVALID, busy = false)) }
+                RenameResult.NotFound -> _state.update { it.copy(rename = null) }
+            }
+        }
+    }
+
+    private fun renamedIn(draft: RoutineDraft, exerciseId: Long, oldName: String, newName: String) = draft.copy(
+        exercises = draft.exercises.map { ex ->
+            ex.copy(
+                name = if (ex.exerciseId == exerciseId) newName else ex.name,
+                alternativeName = if (ex.alternativeName.trim().equals(oldName, ignoreCase = true)) newName else ex.alternativeName,
+            )
+        },
+    )
 
     private fun edit(change: (RoutineDraft) -> RoutineDraft) = _state.update { s ->
         val draft = change(s.draft)

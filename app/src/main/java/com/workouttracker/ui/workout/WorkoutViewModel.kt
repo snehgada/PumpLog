@@ -90,6 +90,9 @@ data class WorkoutUiState(
     val closed: Boolean = false,
     val routineName: String = "",
     val startedAt: Instant? = null,
+    /** Editing a finished workout from History: no rest timer, no suggestion, "Done" instead of Finish. */
+    val editing: Boolean = false,
+    val date: java.time.LocalDate? = null,
     val unit: WeightUnit = WeightUnit.KG,
     val exercises: List<ExerciseUi> = emptyList(),
     val expandedId: Long? = null,
@@ -155,15 +158,25 @@ class WorkoutViewModel(
         env,
     ) { p, loggedSets, session, e, env ->
         if (p == null) return@combine WorkoutUiState()
-        if (session == null || session.status != SessionStatus.IN_PROGRESS) return@combine WorkoutUiState(loading = false, closed = true)
+        // A live workout closes the screen once it is finished or discarded; a finished one being edited
+        // closes only if it is deleted.
+        val editing = p.session.status == SessionStatus.DONE
+        val gone = session == null ||
+            session.status == SessionStatus.SKIPPED ||
+            (!editing && session.status != SessionStatus.IN_PROGRESS)
+        if (gone) return@combine WorkoutUiState(loading = false, closed = true)
         val unit = env.unit
-        val rest = env.rest
-        val exercises = p.exercises.map { buildExercise(it, loggedSets[it.exercise.id].orEmpty(), e, unit, env.increments, env.options) }
+        val rest = if (editing) null else env.rest
+        val exercises = p.exercises.map {
+            buildExercise(it, loggedSets[it.exercise.id].orEmpty(), e, unit, env.increments, env.options, editing)
+        }
         val expanded = if (e.expandedTouched) e.expandedId else exercises.firstOrNull { !it.complete }?.plannedId
         WorkoutUiState(
             loading = false,
             routineName = session.routineName,
             startedAt = session.startedAt,
+            editing = editing,
+            date = session.date,
             unit = unit,
             exercises = exercises,
             expandedId = expanded,
@@ -182,6 +195,7 @@ class WorkoutViewModel(
         unit: WeightUnit,
         increments: Increments,
         options: List<ExerciseRef>,
+        editing: Boolean,
     ): ExerciseUi {
         val pid = planned.exercise.id
         val increment = LiveSessionRules.incrementFor(planned.exercise.kind, increments)
@@ -223,7 +237,7 @@ class WorkoutViewModel(
             isRpt = planned.isRpt,
             restSec = planned.restSec,
             scheme = LiveSessionRules.scheme(planned.targets),
-            suggestedIncrease = suggestion?.let { "${Weights.format(increment, unit)} ${unit.label}" },
+            suggestedIncrease = suggestion?.takeUnless { editing }?.let { "${Weights.format(increment, unit)} ${unit.label}" },
             rows = rows,
         )
     }
@@ -375,6 +389,9 @@ class WorkoutViewModel(
         if (sessions.discard(sessionId)) restTimer.skip()
     }
 
+    /** Deletes a finished workout being edited, with its sets. */
+    fun deleteWorkout() = launchWrite { sessions.deleteWorkout(sessionId) }
+
     fun clearError() = edits.update { it.copy(error = null) }
 
     // ---- Helpers ----
@@ -384,7 +401,7 @@ class WorkoutViewModel(
         edits.update { it.copy(inputs = it.inputs - key, invalid = it.invalid - key) }
         launchWrite {
             sessions.logSet(sessionId, exercise.plannedId, exercise.performed.id, index, type, note, segments, clock.instant())
-            if (startRest) restTimer.start(exercise.restSec, nextUpName(exercise, index))
+            if (startRest && !state.value.editing) restTimer.start(exercise.restSec, nextUpName(exercise, index))
             // Logging the last planned set of this exercise moves the focus to the next unfinished one.
             val remaining = exercise.rows.count { it.target != null && it.logged == null && it.index != index }
             if (remaining == 0) edits.update { it.copy(expandedTouched = false) }

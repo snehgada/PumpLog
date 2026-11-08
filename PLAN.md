@@ -96,6 +96,15 @@ Milestones 0–3 = usable replacement for the sheet.
   - Rest timer: in-app bar (+15 s / Skip) plus a foreground service (`specialUse`) whose notification counts down; "Rest's up" alert with vibration when it ends, also with the screen locked. Notification permission asked when the first workout opens.
   - Database v2: unique (session, exercise, set) index on `logged_set`, added by an automatic migration from v1 (tested by upgrading the emulator's v1 install).
   - Known nits: the rest bar keeps the "Next:" name it started with if you swap mid-rest; "Last time" shows numbers without a unit.
+- **4 — done** (branch `milestone-4-history`, checked on the emulator 2026-11-08).
+  - Rename exercise (routine editor): renames it everywhere, history included; refuses a name another exercise already has (case-insensitive).
+  - Reopen: Today shows "✓ <routine> finished at <time> · Reopen" for the last workout finished today; reopening puts it back in progress and the rotation steps back until it is finished again.
+  - History tab ("This week"): Mon–Sun strip (routine badge / skip / rest / today), workouts · sets · volume · time with last week's numbers, 8-week bar chart (Sets / Volume / Days), previous/next week, the week's workouts and skips (Undo on skips).
+  - Edit past workouts: tap a workout in History → same workout screen in edit mode (no rest timer or suggestion, "Done", "Delete workout"). "Last time" there means the workout before it.
+  - Log a past workout: "+" → pick a day (past year, no future) → pick a routine → fill in its sets. Logged without times, so it adds sets and volume but not time; it only moves the rotation if it is the most recent entry.
+  - Progress tab: exercises with history, most recent first → per-exercise screen with Est. 1RM / Top set / Volume chart (last 20 workouts), change since the first, best set, best volume, PR date, and every workout's sets.
+  - Bottom bar now has four tabs: Today · History · Progress · Routines.
+  - Known nits: a long drop-set chip in Progress history gets cut off; the first week label on the History chart can be cut to just the day number. Swapped sets are filed under the planned exercise (e.g. Seated Row done in place of Lat Pulldown shows under Lat Pulldown in Progress) — by design, but the name can surprise.
 
 ### Build commands
 ```bash
