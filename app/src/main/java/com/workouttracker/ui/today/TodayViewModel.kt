@@ -6,9 +6,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.workouttracker.AppContainer
+import com.workouttracker.data.SessionRepository
 import com.workouttracker.data.SkipResult
+import com.workouttracker.data.StartResult
 import com.workouttracker.data.WorkoutRepository
 import com.workouttracker.data.db.RoutineSummary
+import com.workouttracker.data.db.SessionEntity
 import com.workouttracker.domain.Badges
 import com.workouttracker.domain.Rotation
 import com.workouttracker.domain.RotationStatus
@@ -35,21 +38,28 @@ data class TodayUiState(
     /** Badge text per routine id, e.g. "Pu" for Push and "Pl" for Pull. */
     val badges: Map<Long, String> = emptyMap(),
     val skipNotice: SkipNotice? = null,
+    /** A workout that was started and not finished. */
+    val inProgress: SessionEntity? = null,
+    /** One-shot: open this workout's screen. */
+    val openWorkout: Long? = null,
 )
 
 class TodayViewModel(
     private val repository: WorkoutRepository,
+    private val sessions: SessionRepository,
     private val clock: Clock,
 ) : ViewModel() {
 
     private val skipNotice = MutableStateFlow<SkipNotice?>(null)
+    private val openWorkout = MutableStateFlow<Long?>(null)
 
     val state: StateFlow<TodayUiState> = combine(
         repository.observeRoutineSummaries(),
         repository.observeLatestRotationEntry(),
         repository.observeLatestEntryPerRoutine(),
         skipNotice,
-    ) { routines, latest, perRoutine, notice ->
+        sessions.observeInProgress(),
+    ) { routines, latest, perRoutine, notice, inProgress ->
         val order = routines.map { it.id }
         val nextId = Rotation.next(order, latest?.routineId)
         val lastStatus = perRoutine.mapNotNull { s -> s.routineId?.let { it to s.status } }.toMap()
@@ -62,14 +72,35 @@ class TodayViewModel(
             routines = routines,
             badges = order.zip(Badges.labels(routines.map { it.name })).toMap(),
             skipNotice = notice,
+            inProgress = inProgress,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
+    }.combine(openWorkout) { s, open -> s.copy(openWorkout = open) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())
+
+    /** Starts [routineId] (the next one, or one picked with "Pick another") and opens it. */
+    fun start(routineId: Long) {
+        viewModelScope.launch {
+            when (val result = sessions.start(routineId, LocalDate.now(clock), clock.instant())) {
+                is StartResult.Started -> openWorkout.value = result.sessionId
+                is StartResult.AlreadyInProgress -> openWorkout.value = result.sessionId
+                StartResult.RoutineNotFound -> Unit
+            }
+        }
+    }
+
+    fun resume() {
+        state.value.inProgress?.let { openWorkout.value = it.id }
+    }
+
+    fun workoutOpened() {
+        openWorkout.value = null
+    }
 
     fun skip(routineId: Long) {
         viewModelScope.launch {
             when (val result = repository.skip(routineId, LocalDate.now(clock))) {
                 is SkipResult.Skipped -> skipNotice.value = SkipNotice(result.sessionId, result.routineName)
-                // Not reachable from Today until live logging lands; nothing to show yet.
+                // Skip is hidden while a workout is open, and the routine list is live; nothing to show.
                 SkipResult.WorkoutInProgress, SkipResult.RoutineNotFound -> Unit
             }
         }
@@ -85,7 +116,7 @@ class TodayViewModel(
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { TodayViewModel(container.workoutRepository, container.clock) }
+            initializer { TodayViewModel(container.workoutRepository, container.sessionRepository, container.clock) }
         }
     }
 }

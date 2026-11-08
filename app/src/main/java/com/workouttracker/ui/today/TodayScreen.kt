@@ -2,6 +2,7 @@ package com.workouttracker.ui.today
 
 import androidx.annotation.PluralsRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,6 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -27,7 +31,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,7 +49,10 @@ import com.workouttracker.R
 import com.workouttracker.data.db.RoutineSummary
 import com.workouttracker.domain.RotationStatus
 import com.workouttracker.ui.components.RoutineBadge
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
@@ -50,11 +60,19 @@ fun TodayRoute(
     container: AppContainer,
     onEditRoutines: () -> Unit,
     onOpenRoutine: (routineId: Long) -> Unit,
+    onOpenWorkout: (sessionId: Long) -> Unit,
 ) {
     val viewModel: TodayViewModel = viewModel(factory = TodayViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(state.openWorkout) {
+        val id = state.openWorkout ?: return@LaunchedEffect
+        viewModel.workoutOpened()
+        onOpenWorkout(id)
+    }
     TodayScreen(
         state = state,
+        onStart = viewModel::start,
+        onResume = viewModel::resume,
         onSkip = viewModel::skip,
         onUndoSkip = viewModel::undoSkip,
         onSkipNoticeShown = viewModel::skipNoticeShown,
@@ -66,6 +84,8 @@ fun TodayRoute(
 @Composable
 fun TodayScreen(
     state: TodayUiState,
+    onStart: (routineId: Long) -> Unit,
+    onResume: () -> Unit,
     onSkip: (routineId: Long) -> Unit,
     onUndoSkip: (sessionId: Long) -> Unit,
     onSkipNoticeShown: () -> Unit,
@@ -74,6 +94,7 @@ fun TodayScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalContext.current.resources
+    var pickingAnother by rememberSaveable { mutableStateOf(false) }
 
     // Clear the notice only after the snackbar is done: clearing it first would change the effect key
     // and cancel the snackbar immediately.
@@ -105,8 +126,20 @@ fun TodayScreen(
             if (state.rotation.isNotEmpty()) {
                 item { RotationStrip(state.rotation) }
             }
-            state.next?.let { next ->
-                item { NextUpCard(next, onSkip = { onSkip(next.id) }) }
+            val inProgress = state.inProgress
+            if (inProgress != null) {
+                item { InProgressCard(inProgress.routineName, inProgress.startedAt, onResume) }
+            } else {
+                state.next?.let { next ->
+                    item {
+                        NextUpCard(
+                            next = next,
+                            onStart = { onStart(next.id) },
+                            onSkip = { onSkip(next.id) },
+                            onPickAnother = { pickingAnother = true },
+                        )
+                    }
+                }
             }
             if (state.routines.isNotEmpty()) {
                 item {
@@ -128,6 +161,71 @@ fun TodayScreen(
             }
         }
     }
+
+    if (pickingAnother) {
+        PickAnotherDialog(
+            routines = state.routines,
+            nextId = state.next?.id,
+            onPick = { id -> pickingAnother = false; onStart(id) },
+            onDismiss = { pickingAnother = false },
+        )
+    }
+}
+
+@Composable
+private fun InProgressCard(routineName: String, startedAt: Instant?, onResume: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val started = remember(startedAt) {
+        startedAt?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)).orEmpty()
+    }
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surfaceContainer,
+        border = BorderStroke(1.dp, colors.primaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.in_progress), style = MaterialTheme.typography.labelSmall, color = colors.primary)
+            Text(routineName, style = MaterialTheme.typography.displaySmall)
+            Text(stringResource(R.string.started_at, started), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onResume,
+                colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+            ) { Text(stringResource(R.string.resume_workout), style = MaterialTheme.typography.labelLarge) }
+        }
+    }
+}
+
+@Composable
+private fun PickAnotherDialog(routines: List<RoutineSummary>, nextId: Long?, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.pick_another_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.pick_another_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                routines.filter { it.id != nextId }.forEach { routine ->
+                    Text(
+                        routine.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(routine.id) }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable
@@ -199,7 +297,8 @@ private fun RotationChip(item: RotationItem, position: Int, modifier: Modifier =
 private data class ChipColors(val container: Color, val border: Color, val label: Color, val mark: Color)
 
 @Composable
-private fun NextUpCard(next: RoutineSummary, onSkip: () -> Unit) {
+private fun NextUpCard(next: RoutineSummary, onStart: () -> Unit, onSkip: () -> Unit, onPickAnother: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -219,12 +318,22 @@ private fun NextUpCard(next: RoutineSummary, onSkip: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(
-                onClick = onSkip,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Text(stringResource(R.string.skip_routine, next.name), color = MaterialTheme.colorScheme.onSurface)
+            Button(
+                onClick = onStart,
+                colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+            ) { Text(stringResource(R.string.start_routine, next.name), style = MaterialTheme.typography.labelLarge) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onSkip,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    border = BorderStroke(1.dp, colors.outlineVariant),
+                ) { Text(stringResource(R.string.skip_routine, next.name), color = colors.onSurface) }
+                OutlinedButton(
+                    onClick = onPickAnother,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    border = BorderStroke(1.dp, colors.outlineVariant),
+                ) { Text(stringResource(R.string.pick_another), color = colors.onSurface) }
             }
         }
     }

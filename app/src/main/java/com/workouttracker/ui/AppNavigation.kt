@@ -38,6 +38,7 @@ import com.workouttracker.ui.routines.RoutineEditorRoute
 import com.workouttracker.ui.routines.RoutinesRoute
 import com.workouttracker.ui.today.TodayRoute
 import com.workouttracker.ui.welcome.WelcomeRoute
+import com.workouttracker.ui.workout.WorkoutRoute
 
 private object Routes {
     const val WELCOME = "welcome"
@@ -46,8 +47,11 @@ private object Routes {
     const val ROUTINE_ARG = "routineId"
     const val EDIT_ROUTINE = "routine/{$ROUTINE_ARG}"
     const val NEW_ROUTINE = "routine_new"
+    const val SESSION_ARG = "sessionId"
+    const val WORKOUT = "workout/{$SESSION_ARG}"
 
     fun editRoutine(id: Long) = "routine/$id"
+    fun workout(sessionId: Long) = "workout/$sessionId"
 }
 
 private enum class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector) {
@@ -56,7 +60,7 @@ private enum class Tab(val route: String, @StringRes val label: Int, val icon: I
 }
 
 @Composable
-fun AppNavigation(container: AppContainer) {
+fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0) {
     // Seed first, then decide where to start: First launch until it has been dismissed once.
     var start by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
@@ -71,6 +75,16 @@ fun AppNavigation(container: AppContainer) {
 
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
+
+    // Opened from the rest-timer notification: go to the workout in progress, if there still is one.
+    LaunchedEffect(openWorkoutRequests) {
+        if (openWorkoutRequests == 0) return@LaunchedEffect
+        val session = container.sessionRepository.inProgress() ?: return@LaunchedEffect
+        val route = Routes.workout(session.id)
+        if (navController.currentBackStackEntry?.destination?.route != Routes.WORKOUT) {
+            navController.navigate(route) { launchSingleTop = true }
+        }
+    }
     val currentRoute = backStack?.destination?.route
     val showTabs = Tab.entries.any { it.route == currentRoute }
 
@@ -97,7 +111,15 @@ fun AppNavigation(container: AppContainer) {
                     container = container,
                     onEditRoutines = { navController.switchTab(Routes.ROUTINES) },
                     onOpenRoutine = { id -> navController.navigate(Routes.editRoutine(id)) },
+                    onOpenWorkout = { id -> navController.navigate(Routes.workout(id)) { launchSingleTop = true } },
                 )
+            }
+            composable(
+                Routes.WORKOUT,
+                arguments = listOf(navArgument(Routes.SESSION_ARG) { type = NavType.LongType }),
+            ) { entry ->
+                val id = entry.arguments?.getLong(Routes.SESSION_ARG) ?: return@composable
+                WorkoutRoute(container = container, sessionId = id, onClose = { navController.popBackStack() })
             }
             composable(Routes.ROUTINES) {
                 RoutinesRoute(

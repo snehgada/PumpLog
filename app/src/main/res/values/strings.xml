@@ -40,6 +40,66 @@
     <string name="skip_routine">Skip %1$s</string>
     <string name="routine_skipped">%1$s skipped</string>
     <string name="your_routines">Your routines</string>
+    <string name="start_routine">Start %1$s</string>
+    <string name="pick_another">Pick another</string>
+    <string name="pick_another_title">Do a different routine today</string>
+    <string name="pick_another_body">The rotation carries on from whichever routine you finish.</string>
+    <string name="in_progress">IN PROGRESS</string>
+    <string name="started_at">Started at %1$s</string>
+    <string name="resume_workout">Resume workout</string>
+
+    <!-- Workout -->
+    <string name="finish">Finish</string>
+    <string name="finish_workout">Finish workout</string>
+    <string name="finish_title">Finish workout?</string>
+    <string name="finish_body">You logged %1$d of %2$d planned sets.</string>
+    <string name="keep_going">Keep going</string>
+    <string name="discard_workout">Discard workout</string>
+    <string name="nothing_logged_title">Nothing logged yet</string>
+    <string name="nothing_logged_body">Discard this workout? It won\'t count in your rotation.</string>
+    <string name="workout_save_failed">Couldn\'t save that set. Check the numbers and try again.</string>
+    <string name="sets_progress">%1$d/%2$d</string>
+    <string name="instead_of">Instead of %1$s</string>
+    <string name="swap_exercise">Swap exercise</string>
+    <string name="progression_hint">You hit the top of every rep range last time. Try +%1$s.</string>
+    <string name="col_set">Set</string>
+    <string name="col_last">Last time</string>
+    <string name="col_reps">Reps</string>
+    <string name="extra_set">extra</string>
+    <string name="set_details">Set details</string>
+    <string name="weight_for_set">Weight for set %1$d</string>
+    <string name="reps_for_set">Reps for set %1$d</string>
+    <string name="log_set">Log set %1$d</string>
+    <string name="unlog_set">Undo set %1$d</string>
+    <string name="invalid_set">Enter a weight and reps (0–200).</string>
+    <string name="drop_set_or_note">Drop set / note</string>
+    <string name="rest_label">REST</string>
+    <string name="skip_rest">Skip</string>
+    <string name="top_set">Top set</string>
+    <string name="drop_number">Drop %1$d</string>
+    <string name="remove_block">Remove block %1$d</string>
+    <string name="add_drop">+ Add drop</string>
+    <string name="set_note">Note for this set</string>
+    <string name="swap_for_today">Swap exercise for today</string>
+    <string name="remove_logged_set">Remove set</string>
+    <string name="save_set">Save set</string>
+    <string name="type_normal">Normal</string>
+    <string name="type_drop">Drop set</string>
+    <string name="type_warmup">Warm-up</string>
+    <string name="type_failure">Failure</string>
+    <string name="swap_title">Swap %1$s</string>
+    <string name="swap_body">For today only. History stays with the planned exercise.</string>
+    <string name="swap_back">Back to %1$s</string>
+    <string name="swap_alternative">%1$s (your alternative)</string>
+    <string name="swap_search">Find an exercise</string>
+    <string name="swap_use_new">Use \"%1$s\"</string>
+
+    <!-- Rest notifications -->
+    <string name="channel_rest_countdown">Rest timer</string>
+    <string name="channel_rest_done">Rest finished</string>
+    <string name="rest_notification_title">Resting</string>
+    <string name="rest_notification_next">Next: %1$s</string>
+    <string name="rest_over_title">Rest\'s up</string>
 
     <!-- First launch -->
     <string name="welcome_kicker">WELCOME</string>

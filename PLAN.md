@@ -76,7 +76,7 @@ SetSegment(loggedSetId, order, reps, weightGrams)                    // drop set
 | 0 | Install Android Studio; create project (Compose, M3 theme, Room, minSdk 31) | Empty themed app runs on the phone |
 | 1 | Data layer, seed routines, unit tests for rotation / progression / 1RM | Tests green; fresh install shows 5 routines |
 | 2 | First launch + Today (screens 0–1) + routine editor (screen 6) | Rotation picks the right next routine; Skip moves it on and can be undone; routines editable and reorderable |
-| 3 | Live session + set sheet + rest timer service (screens 3–4) | Full workout logged with the screen locked between sets; killed app resumes the session |
+| 3 | Live session + set sheet + rest timer service (screens 3–4) + Start / Resume / Pick another | Full workout logged with the screen locked between sets; killed app resumes the session |
 | 4 | This week + exercise progress (screens 2, 5) | Week strip and totals match logged sessions; 8-week chart; past workout can be added on a chosen date; per-exercise chart, best set, PRs |
 | 5 | Widget, kg/lb setting, signed release APK | Widget starts/resumes a workout; APK installs over USB |
 
@@ -86,8 +86,16 @@ Milestones 0–3 = usable replacement for the sheet.
 - **0 — done.** Gradle 8.11.1 wrapper (checksums verified), AGP 8.7.3, Kotlin 2.1.0, Compose BOM 2024.12.01, Room 2.6.1, minSdk 31 / target 35, dark theme, adaptive icon, no INTERNET permission, backup rules.
 - **1 — done.** Room schema v1 (exported to `app/schemas/`), seeded routines, settings (DataStore), rotation / progression / 1RM / weekly logic, routine badges.
 - **2 — done** (checked on the emulator 2026-11-08). First launch screen (rotation preview, kg/lb, Continue / Review routines), bottom navigation (Today, Routines), Today with Skip + Undo and an Edit link, Routines list with move up/down, routine editor (name, per-set min/max with open-ended "+", add/remove sets, rest ±15 s, RPT switch, alternative, reorder/remove exercises, add exercise with suggestions from existing exercises, delete routine with confirm, discard-changes prompt, inline validation). 43 unit tests.
-  - Moved to milestone 3: "Pick another" (it only matters once Start exists) and the Start button itself.
   - History and Progress tabs join the bottom bar in milestone 4.
+- **3 — done** (branch `milestone-3-logging`, checked on the emulator 2026-11-08).
+  - Today: Start <next>, Pick another, and an In progress card with Resume. Only one workout can be open at a time.
+  - Live workout screen: one card per exercise (the next unfinished one opens automatically), per-set rows with last time's numbers, weight pre-filled from the suggestion or last time, reps placeholder = target range, tick to log / untick to undo, extra sets, progression hint when every set hit the top of its range last time.
+  - Set sheet: Normal / Drop set / Warm-up / Failure, up to 5 drop blocks, note, remove set.
+  - Swap for today: alternative, search existing exercises, or a new name; logged sets follow the swap; history stays with the planned exercise.
+  - Finish (counts logged vs planned) or Discard; finishing advances the rotation.
+  - Rest timer: in-app bar (+15 s / Skip) plus a foreground service (`specialUse`) whose notification counts down; "Rest's up" alert with vibration when it ends, also with the screen locked. Notification permission asked when the first workout opens.
+  - Database v2: unique (session, exercise, set) index on `logged_set`, added by an automatic migration from v1 (tested by upgrading the emulator's v1 install).
+  - Known nits: the rest bar keeps the "Next:" name it started with if you swap mid-rest; "Last time" shows numbers without a unit.
 
 ### Build commands
 ```bash

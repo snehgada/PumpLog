@@ -101,6 +101,64 @@ interface RoutineDao {
 data class RoutineExerciseName(val routineId: Long, val name: String)
 
 @Dao
+interface LoggedSetDao {
+
+    @Insert suspend fun insertSet(set: LoggedSetEntity): Long
+    @Insert suspend fun insertSegments(segments: List<SetSegmentEntity>)
+
+    @Query("SELECT * FROM logged_set WHERE sessionId = :sessionId AND plannedExerciseId = :exerciseId AND setIndex = :setIndex")
+    suspend fun findSet(sessionId: Long, exerciseId: Long, setIndex: Int): LoggedSetEntity?
+
+    @Query(
+        """
+        UPDATE logged_set SET performedExerciseId = :performedExerciseId, type = :type, note = :note, completedAt = :completedAt
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateSet(id: Long, performedExerciseId: Long, type: com.workouttracker.domain.SetType, note: String?, completedAt: Instant)
+
+    @Query("DELETE FROM set_segment WHERE loggedSetId = :loggedSetId")
+    suspend fun deleteSegments(loggedSetId: Long)
+
+    @Query("DELETE FROM logged_set WHERE id = :id AND sessionId = :sessionId")
+    suspend fun deleteSet(id: Long, sessionId: Long): Int
+
+    @Query("UPDATE logged_set SET performedExerciseId = :performedExerciseId WHERE sessionId = :sessionId AND plannedExerciseId = :plannedExerciseId")
+    suspend fun setPerformedExercise(sessionId: Long, plannedExerciseId: Long, performedExerciseId: Long)
+
+    @Query("SELECT * FROM logged_set WHERE sessionId = :sessionId ORDER BY plannedExerciseId, setIndex")
+    fun observeSets(sessionId: Long): Flow<List<LoggedSetEntity>>
+
+    @Query(
+        """
+        SELECT seg.* FROM set_segment seg
+        JOIN logged_set ls ON ls.id = seg.loggedSetId
+        WHERE ls.sessionId = :sessionId
+        ORDER BY seg.loggedSetId, seg.position
+        """,
+    )
+    fun observeSegments(sessionId: Long): Flow<List<SetSegmentEntity>>
+
+    /** The most recent finished workout, other than [excludeSessionId], that logged [exerciseId]. */
+    @Query(
+        """
+        SELECT s.id FROM session s
+        JOIN logged_set ls ON ls.sessionId = s.id
+        WHERE s.status = 'DONE' AND ls.plannedExerciseId = :exerciseId AND s.id != :excludeSessionId
+        ORDER BY s.date DESC, s.id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun lastSessionWith(exerciseId: Long, excludeSessionId: Long): Long?
+
+    @Query("SELECT * FROM logged_set WHERE sessionId = :sessionId AND plannedExerciseId = :exerciseId ORDER BY setIndex")
+    suspend fun setsFor(sessionId: Long, exerciseId: Long): List<LoggedSetEntity>
+
+    @Query("SELECT * FROM set_segment WHERE loggedSetId IN (:loggedSetIds) ORDER BY loggedSetId, position")
+    suspend fun segmentsFor(loggedSetIds: List<Long>): List<SetSegmentEntity>
+}
+
+@Dao
 interface SessionDao {
 
     @Insert suspend fun insertSession(session: SessionEntity): Long
@@ -133,6 +191,22 @@ interface SessionDao {
 
     @Query("SELECT * FROM session WHERE status = 'IN_PROGRESS' LIMIT 1")
     suspend fun getInProgress(): SessionEntity?
+
+    @Query("SELECT * FROM session WHERE status = 'IN_PROGRESS' LIMIT 1")
+    fun observeInProgress(): Flow<SessionEntity?>
+
+    @Query("SELECT * FROM session WHERE id = :id")
+    suspend fun getSession(id: Long): SessionEntity?
+
+    @Query("SELECT * FROM session WHERE id = :id")
+    fun observeSession(id: Long): Flow<SessionEntity?>
+
+    @Query("UPDATE session SET status = 'DONE', finishedAt = :at WHERE id = :id AND status = 'IN_PROGRESS'")
+    suspend fun finish(id: Long, at: Instant): Int
+
+    /** Only an unfinished workout can be thrown away; its logged sets go with it (cascade). */
+    @Query("DELETE FROM session WHERE id = :id AND status = 'IN_PROGRESS'")
+    suspend fun discardInProgress(id: Long): Int
 
     /** Only skips can be undone this way; real workouts are never deleted by it. */
     @Query("DELETE FROM session WHERE id = :sessionId AND status = 'SKIPPED'")

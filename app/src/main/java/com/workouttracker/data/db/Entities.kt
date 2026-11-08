@@ -91,7 +91,13 @@ data class SessionEntity(
         ForeignKey(entity = ExerciseEntity::class, parentColumns = ["id"], childColumns = ["plannedExerciseId"], onDelete = ForeignKey.RESTRICT),
         ForeignKey(entity = ExerciseEntity::class, parentColumns = ["id"], childColumns = ["performedExerciseId"], onDelete = ForeignKey.RESTRICT),
     ],
-    indices = [Index("sessionId"), Index("plannedExerciseId"), Index("performedExerciseId")],
+    indices = [
+        Index("sessionId"),
+        Index("plannedExerciseId"),
+        Index("performedExerciseId"),
+        // One row per set of each exercise in a workout (added in schema v2).
+        Index(value = ["sessionId", "plannedExerciseId", "setIndex"], unique = true),
+    ],
 )
 data class LoggedSetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
