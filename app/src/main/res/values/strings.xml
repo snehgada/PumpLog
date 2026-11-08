@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Workout Tracker</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">Today</string>
+    <string name="tab_routines">Routines</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="add">Add</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="undo">Undo</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_lb">lb</string>
+    <string name="units">Units</string>
+    <string name="routine_meta">%1$s · %2$s</string>
+    <string name="move_earlier">Move %1$s earlier</string>
+    <string name="move_later">Move %1$s later</string>
+
+    <plurals name="exercise_count">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+    <plurals name="set_count">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+
+    <!-- Today -->
+    <string name="today_title">Today</string>
+    <string name="rotation_label">ROTATION</string>
+    <string name="rotation_next">NEXT</string>
+    <string name="rotation_done">✓</string>
+    <string name="rotation_skipped">SKIP</string>
+    <string name="next_in_rotation">NEXT IN ROTATION</string>
+    <string name="skip_routine">Skip %1$s</string>
+    <string name="routine_skipped">%1$s skipped</string>
+    <string name="your_routines">Your routines</string>
+
+    <!-- First launch -->
+    <string name="welcome_kicker">WELCOME</string>
+    <string name="welcome_title">Your split is loaded and ready</string>
+    <string name="welcome_body">The app runs these in order. Miss a gym day and it waits for you; skip a workout and it moves on to the next one.</string>
+    <string name="welcome_up_first">UP FIRST</string>
+    <string name="welcome_continue">Continue</string>
+    <string name="welcome_review">Review routines first</string>
+
+    <!-- Routines list -->
+    <string name="routines_title">Routines</string>
+    <string name="routines_subtitle">Done in this order. Skipped gym days don\'t move it.</string>
+    <string name="routine_list_meta">#%1$d · %2$s · %3$s</string>
+    <string name="new_routine">New routine</string>
+
+    <!-- Routine editor -->
+    <string name="edit_routine">Edit routine</string>
+    <string name="routine_name">Routine name</string>
+    <string name="add_exercise">Add exercise</string>
+    <string name="exercise_name">Exercise</string>
+    <string name="sets">Sets</string>
+    <string name="set_number">Set %1$d</string>
+    <string name="min_reps">Min</string>
+    <string name="max_reps">Max</string>
+    <string name="remove_set">Remove set %1$d</string>
+    <string name="add_set">+ Add set</string>
+    <string name="rest">Rest</string>
+    <string name="rest_minus">−15s</string>
+    <string name="rest_plus">+15s</string>
+    <string name="rpt">RPT</string>
+    <string name="rpt_title">Reverse pyramid (RPT)</string>
+    <string name="rpt_body">Heaviest set first, then lighter sets for more reps</string>
+    <string name="alternative_label">Alternative (optional)</string>
+    <string name="alternative_short">Alt: %1$s</string>
+    <string name="remove_exercise">Remove exercise</string>
+    <string name="expand">Show sets</string>
+    <string name="collapse">Hide sets</string>
+    <string name="delete_routine">Delete routine</string>
+    <string name="delete_title">Delete %1$s?</string>
+    <string name="delete_body">Past workouts of this routine stay in your history.</string>
+    <string name="discard_title">Discard your changes?</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
+    <string name="save_failed">Couldn\'t save. Check the highlighted fields and try again.</string>
+    <string name="delete_failed">Couldn\'t delete. You need at least one routine.</string>
+
+    <string name="issue_name_blank">Give the routine a name</string>
+    <string name="issue_name_long">Keep the name under 40 characters</string>
+    <string name="issue_no_exercises">Add at least one exercise</string>
+    <string name="issue_min">Min reps must be 1–100</string>
+    <string name="issue_max">Max reps must be 1–100, or blank for open-ended (10+)</string>
+    <string name="issue_max_below_min">Max can\'t be lower than min</string>
+    <string name="issue_alternative_same">Pick a different exercise as the alternative</string>
+
+    <string name="kind_barbell">Barbell</string>
+    <string name="kind_dumbbell">Dumbbell</string>
+    <string name="kind_cable">Cable</string>
+    <string name="kind_machine">Machine</string>
+    <string name="kind_bodyweight">Bodyweight</string>
+</resources>

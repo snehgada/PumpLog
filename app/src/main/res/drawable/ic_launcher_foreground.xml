@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dumbbell mark, kept inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M40,40 L40,68 M68,40 L68,68 M32,47 L32,61 M76,47 L76,61 M40,54 L68,54"
+        android:strokeWidth="6"
+        android:strokeColor="#FFCBF35C"
+        android:strokeLineCap="round" />
+</vector>
