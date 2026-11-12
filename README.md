@@ -1,5 +1,7 @@
 # PumpLog
 
+[![Latest release](https://img.shields.io/github/v/release/snehgada/PumpLog?label=release)](https://github.com/snehgada/PumpLog/releases/latest)
+
 A personal, offline Android app for logging gym workouts on a fixed split — built to replace a Google Sheet.
 
 You set up your routines once (Upper, Lower, Push, Pull, Legs…). PumpLog keeps track of which one is next, shows what
@@ -48,6 +50,11 @@ switched on.
 - To build: **JDK 17** and the **Android SDK** (platform 35). Android Studio works for editing; for command-line builds
   use a JDK 17 such as Homebrew's `openjdk@17` — the Java bundled with recent Android Studio releases is too new for
   the Gradle version used here.
+
+## Download
+
+Get the APK from the [latest release](https://github.com/snehgada/PumpLog/releases/latest), open it on an Android 12+
+phone, and allow installing when Android asks. Or build it yourself:
 
 ## Build and install
 
