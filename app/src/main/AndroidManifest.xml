@@ -9,6 +9,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- End-of-rest alert as an exact alarm, so it fires even if the phone freezes the app.
+         USE_EXACT_ALARM is granted automatically to timer apps on Android 13+; Android 12 uses SCHEDULE_EXACT_ALARM. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+
     <application
         android:name=".WorkoutApp"
         android:allowBackup="true"
@@ -17,7 +24,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.WorkoutTracker">
+        android:theme="@style/Theme.PumpLog">
 
         <activity
             android:name=".MainActivity"
@@ -29,6 +36,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".timer.RestAlarm$RestAlarmReceiver"
+            android:exported="false" />
 
         <service
             android:name=".timer.RestTimerService"

@@ -50,6 +50,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         }
     }
 
+    /** Whether the "allow background activity" tip on the workout screen has been dismissed. */
+    val batteryTipDismissed: Flow<Boolean> = preferences.map { it[BATTERY_TIP_DISMISSED] ?: false }
+
+    suspend fun dismissBatteryTip() {
+        store.edit { it[BATTERY_TIP_DISMISSED] = true }
+    }
+
     /** Whether the First launch screen has been dismissed. */
     suspend fun isWelcomeDone(): Boolean = preferences.first()[WELCOME_DONE] ?: false
 
@@ -69,6 +76,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
         val DUMBBELL_INCREMENT = intPreferencesKey("dumbbell_increment_grams")
         val ROUTINES_SEEDED = booleanPreferencesKey("routines_seeded")
         val WELCOME_DONE = booleanPreferencesKey("welcome_done")
+        val BATTERY_TIP_DISMISSED = booleanPreferencesKey("battery_tip_dismissed")
 
         const val DEFAULT_BARBELL_INCREMENT = 2_500
         const val DEFAULT_DUMBBELL_INCREMENT = 2_000

@@ -1,6 +1,6 @@
-# Workout Tracker — build plan
+# PumpLog — build plan
 
-Personal Android app replacing the "Workout Tracker" Google Sheet.
+PumpLog: personal Android app replacing the "Workout Tracker" Google Sheet. (App ID stays `com.workouttracker` so installs update in place.)
 Designs: https://claude.ai/artifact/LaAwjhActFsfFBiwbLRA9p — 0 First launch · 1 Today · 2 This week · 3 Live session · 4 Drop set & note · 5 Exercise progress · 6 Routine editor · 7 Home-screen widget.
 
 ## Decisions
@@ -118,6 +118,21 @@ Emulator (disk is tight, so shrink its storage; needs ~7.4 GB free):
 ```bash
 ~/Library/Android/sdk/emulator/emulator -avd Medium_Phone_API_37.0 -partition-size 2048
 ```
+
+### Rest-alert fix (branch `fix-rest-alert`, 2026-11-12)
+- Problem on the real phone (OnePlus CPH2585, Android 16): `OplusHansManager` froze the app ~5 s after it left the
+  screen, so the in-app countdown never fired "Rest's up". Notification permission and channels were fine.
+- The alert now comes from an Android alarm-clock alarm (`AlarmManager.setAlarmClock`, permission `USE_EXACT_ALARM`)
+  delivered to a non-exported receiver, which wakes the app even if it was frozen or killed. The countdown
+  notification stays (its time is drawn by the system). The service no longer posts the alert itself, and is
+  stopped with `stopService` so the alarm never has to start it from the background.
+- Settings screen (gear on Today): kg/lb, rest-alert status (notifications, background activity, exact alarms) with
+  shortcuts to the right system pages, and "Test rest alert" (fires in 10 s).
+- Workout screen: warning if notifications are off; one-time tip to allow background activity; a rest that has
+  already ended is no longer shown as a 0:00 bar.
+- Emulator check: test alert with the app killed and the screen locked was delivered ~1 s after it was due.
+- Phone check (2026-11-12): "Test rest alert" with the phone locked arrived, with background activity still restricted.
+  Still worth watching during a real workout, where rests are 1.5–3 min rather than 10 s.
 
 ## Design changes (done 2026-11-08)
 - Import screen removed.

@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +65,7 @@ fun TodayRoute(
     onEditRoutines: () -> Unit,
     onOpenRoutine: (routineId: Long) -> Unit,
     onOpenWorkout: (sessionId: Long) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val viewModel: TodayViewModel = viewModel(factory = TodayViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -79,6 +84,7 @@ fun TodayRoute(
         onSkipNoticeShown = viewModel::skipNoticeShown,
         onEditRoutines = onEditRoutines,
         onOpenRoutine = onOpenRoutine,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -93,6 +99,7 @@ fun TodayScreen(
     onSkipNoticeShown: () -> Unit,
     onEditRoutines: () -> Unit,
     onOpenRoutine: (routineId: Long) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val resources = LocalContext.current.resources
@@ -124,7 +131,7 @@ fun TodayScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { Header(state) }
+            item { Header(state, onOpenSettings) }
             if (state.rotation.isNotEmpty()) {
                 item { RotationStrip(state.rotation) }
             }
@@ -256,13 +263,18 @@ private fun PickAnotherDialog(routines: List<RoutineSummary>, nextId: Long?, onP
 }
 
 @Composable
-private fun Header(state: TodayUiState) {
+private fun Header(state: TodayUiState, onOpenSettings: () -> Unit) {
     val dateText = remember(state.date) {
         state.date?.format(DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.getDefault())).orEmpty()
     }
-    Column(modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
-        Text(dateText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(stringResource(R.string.today_title), style = MaterialTheme.typography.headlineMedium)
+    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)) {
+        Column(Modifier.weight(1f)) {
+            Text(dateText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.today_title), style = MaterialTheme.typography.headlineMedium)
+        }
+        IconButton(onClick = onOpenSettings) {
+            Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings))
+        }
     }
 }
 

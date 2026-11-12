@@ -37,6 +37,7 @@ import com.workouttracker.ui.progress.ExerciseProgressRoute
 import com.workouttracker.ui.progress.ProgressRoute
 import com.workouttracker.ui.routines.RoutineEditorRoute
 import com.workouttracker.ui.routines.RoutinesRoute
+import com.workouttracker.ui.settings.SettingsRoute
 import com.workouttracker.ui.today.TodayRoute
 import com.workouttracker.ui.welcome.WelcomeRoute
 import com.workouttracker.ui.workout.WorkoutRoute
@@ -50,6 +51,7 @@ private object Routes {
     const val NEW_ROUTINE = "routine_new"
     const val SESSION_ARG = "sessionId"
     const val WORKOUT = "workout/{$SESSION_ARG}"
+    const val SETTINGS = "settings"
     const val HISTORY = "history"
     const val PROGRESS = "progress"
     const val EXERCISE_ARG = "exerciseId"
@@ -120,7 +122,11 @@ fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0) {
                     onEditRoutines = { navController.switchTab(Routes.ROUTINES) },
                     onOpenRoutine = { id -> navController.navigate(Routes.editRoutine(id)) },
                     onOpenWorkout = { id -> navController.navigate(Routes.workout(id)) { launchSingleTop = true } },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
                 )
+            }
+            composable(Routes.SETTINGS) {
+                SettingsRoute(container = container, onBack = { navController.popBackStack() })
             }
             composable(
                 Routes.WORKOUT,

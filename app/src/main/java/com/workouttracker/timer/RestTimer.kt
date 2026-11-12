@@ -10,8 +10,10 @@ import java.time.Instant
 data class RestState(val endsAt: Instant, val exerciseName: String)
 
 /**
- * The one rest countdown in the app. The screen reads [state]; [RestTimerService] keeps it alive and
- * alerts at the end while the phone is locked.
+ * The one rest countdown in the app. The screen reads [state].
+ * - [RestAlarm] fires the "Rest's up" alert through Android's alarm system, so it works even if the phone
+ *   freezes the app in the background.
+ * - [RestTimerService] shows the countdown notification while resting.
  */
 class RestTimer(private val context: Context, private val clock: Clock) {
 
@@ -20,9 +22,7 @@ class RestTimer(private val context: Context, private val clock: Clock) {
 
     fun start(seconds: Int, exerciseName: String) {
         val clamped = seconds.coerceIn(1, MAX_REST_SEC)
-        val next = RestState(clock.instant().plusSeconds(clamped.toLong()), exerciseName)
-        _state.value = next
-        RestTimerService.start(context, next)
+        set(RestState(clock.instant().plusSeconds(clamped.toLong()), exerciseName))
     }
 
     /** Adds (or with a negative value removes) time; never ends up in the past or beyond the cap. */
@@ -32,24 +32,39 @@ class RestTimer(private val context: Context, private val clock: Clock) {
         val ends = current.endsAt.plusSeconds(seconds.toLong())
             .coerceAtLeast(now.plusSeconds(1))
             .coerceAtMost(now.plusSeconds(MAX_REST_SEC.toLong()))
-        val next = current.copy(endsAt = ends)
-        _state.value = next
-        RestTimerService.start(context, next)
+        set(current.copy(endsAt = ends))
     }
 
     fun skip() {
         if (_state.value == null) return
         _state.value = null
+        RestAlarm.cancel(context)
         RestTimerService.stop(context)
     }
 
-    /** Called by the service when the countdown it was running reaches zero. */
+    /**
+     * Fires a "Rest's up" alert in [seconds] through the same alarm path as a real rest, without touching the
+     * workout. Lets you check the alert reaches a locked phone.
+     */
+    fun testAlert(seconds: Int = TEST_SEC, label: String) {
+        if (_state.value != null) return // never replace a real rest in progress
+        RestAlarm.schedule(context, clock.millis() + seconds * 1000L, label)
+    }
+
+    /** Called when the alarm fires or the countdown service ends. */
     internal fun onFinished(endsAt: Instant) {
         if (_state.value?.endsAt == endsAt) _state.value = null
+    }
+
+    private fun set(next: RestState) {
+        _state.value = next
+        RestAlarm.schedule(context, next.endsAt.toEpochMilli(), next.exerciseName)
+        RestTimerService.start(context, next)
     }
 
     companion object {
         /** 15 minutes: enough for any rest, and bounds how long the service may hold a wake lock. */
         const val MAX_REST_SEC = 15 * 60
+        const val TEST_SEC = 10
     }
 }

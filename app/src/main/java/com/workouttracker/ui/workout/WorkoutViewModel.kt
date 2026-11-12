@@ -100,6 +100,7 @@ data class WorkoutUiState(
     val swapFor: Long? = null,
     val rest: RestState? = null,
     val error: WorkoutError? = null,
+    val batteryTipDismissed: Boolean = true,
 ) {
     val loggedCount: Int get() = exercises.sumOf { it.loggedCount }
     val plannedCount: Int get() = exercises.sumOf { it.plannedCount }
@@ -121,7 +122,7 @@ class WorkoutViewModel(
     private val sessionId: Long,
     private val sessions: SessionRepository,
     routines: RoutineRepository,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
     private val restTimer: RestTimer,
     private val clock: Clock,
 ) : ViewModel() {
@@ -142,9 +143,15 @@ class WorkoutViewModel(
         }
     }
 
-    private data class Env(val unit: WeightUnit, val increments: Increments, val rest: RestState?, val options: List<ExerciseRef>)
+    private data class Env(
+        val unit: WeightUnit,
+        val increments: Increments,
+        val rest: RestState?,
+        val options: List<ExerciseRef>,
+        val batteryTipDismissed: Boolean,
+    )
 
-    private val env = combine(settings.weightUnit, settings.increments, restTimer.state, options, ::Env)
+    private val env = combine(settings.weightUnit, settings.increments, restTimer.state, options, settings.batteryTipDismissed, ::Env)
 
     // Emits an empty map until the plan is loaded, so the combined state can still report a missing workout.
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -184,6 +191,7 @@ class WorkoutViewModel(
             swapFor = e.swapFor,
             rest = rest,
             error = e.error,
+            batteryTipDismissed = env.batteryTipDismissed,
         )
     }.combine(missing) { s, gone -> if (gone) WorkoutUiState(loading = false, closed = true) else s }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WorkoutUiState())
@@ -393,6 +401,10 @@ class WorkoutViewModel(
     fun deleteWorkout() = launchWrite { sessions.deleteWorkout(sessionId) }
 
     fun clearError() = edits.update { it.copy(error = null) }
+
+    fun dismissBatteryTip() {
+        viewModelScope.launch { settings.dismissBatteryTip() }
+    }
 
     // ---- Helpers ----
 

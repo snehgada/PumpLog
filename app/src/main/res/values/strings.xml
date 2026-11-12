@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Workout Tracker</string>
+    <string name="app_name">PumpLog</string>
 
     <!-- Tabs -->
     <string name="tab_today">Today</string>
@@ -147,6 +147,29 @@
     <string name="swap_alternative">%1$s (your alternative)</string>
     <string name="swap_search">Find an exercise</string>
     <string name="swap_use_new">Use \"%1$s\"</string>
+
+    <!-- Settings and rest-alert readiness -->
+    <string name="settings">Settings</string>
+    <string name="units_note">Changes how weights are shown and typed. Your logged weights stay exact.</string>
+    <string name="rest_alerts">Rest alerts</string>
+    <string name="status_notifications">Notifications</string>
+    <string name="status_background">Background activity</string>
+    <string name="status_exact">Exact alarm timing</string>
+    <string name="status_on">On</string>
+    <string name="status_off">Off</string>
+    <string name="status_allowed">Allowed</string>
+    <string name="status_may_pause">Your phone may pause the app between sets</string>
+    <string name="turn_on">Turn on</string>
+    <string name="open_settings">Open settings</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="background_help">On OnePlus and Oppo phones: App info → Battery → Allow background activity. Other phones: set Battery to Unrestricted.</string>
+    <string name="test_alert">Test rest alert</string>
+    <string name="test_alert_label">Test alert</string>
+    <string name="test_alert_help">Fires a \"Rest\'s up\" alert in 10 seconds. Lock your phone straight after tapping to check it arrives.</string>
+    <string name="test_alert_busy">Finish or skip the current rest to run a test.</string>
+    <string name="test_alert_started">Lock your phone now. The alert fires in 10 seconds.</string>
+    <string name="warn_notifications_off">Notifications are off, so the \"Rest\'s up\" alert can\'t reach you.</string>
+    <string name="warn_background">Your phone may pause this app between sets. Allow background activity so rest alerts always arrive.</string>
 
     <!-- Rest notifications -->
     <string name="channel_rest_countdown">Rest timer</string>

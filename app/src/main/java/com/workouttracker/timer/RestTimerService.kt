@@ -19,8 +19,9 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 /**
- * Keeps the rest countdown running with the screen locked: an ongoing notification shows the time left
- * (rendered by the system), and a "Rest's up" notification fires at the end. Not exported; only this app starts it.
+ * Shows the rest countdown while resting: an ongoing notification whose time left is rendered by the system,
+ * so it keeps counting even if the app is frozen. The end-of-rest alert comes from [RestAlarm].
+ * Not exported; only this app starts it.
  */
 class RestTimerService : Service() {
 
@@ -70,7 +71,8 @@ class RestTimerService : Service() {
         countdown?.cancel()
         countdown = scope.launch {
             delay(remaining)
-            RestNotifications.restOver(this@RestTimerService, name)
+            // The "Rest's up" alert itself comes from RestAlarm, which still fires if this app is frozen;
+            // here we only clear the countdown.
             (application as WorkoutApp).container.restTimer.onFinished(Instant.ofEpochMilli(endsAt))
             end()
         }
@@ -87,7 +89,7 @@ class RestTimerService : Service() {
     private fun holdWakeLock(timeoutMs: Long) {
         releaseWakeLock()
         val pm = getSystemService(PowerManager::class.java)
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WorkoutTracker:rest").apply {
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PumpLog:rest").apply {
             setReferenceCounted(false)
             acquire(timeoutMs) // always bounded, so a bug can never keep the phone awake
         }
@@ -106,7 +108,6 @@ class RestTimerService : Service() {
 
     companion object {
         private const val ACTION_START = "com.workouttracker.rest.START"
-        private const val ACTION_STOP = "com.workouttracker.rest.STOP"
         internal const val ACTION_SKIP = "com.workouttracker.rest.SKIP"
         private const val EXTRA_ENDS_AT = "endsAt"
         private const val EXTRA_EXERCISE = "exercise"
@@ -125,12 +126,12 @@ class RestTimerService : Service() {
             }
         }
 
+        /**
+         * Stops the countdown if it is running. stopService never starts the service, so this is safe from the
+         * background (e.g. from the end-of-rest alarm); onDestroy releases the wake lock and the notification goes.
+         */
         fun stop(context: Context) {
-            try {
-                context.startService(Intent(context, RestTimerService::class.java).setAction(ACTION_STOP))
-            } catch (e: IllegalStateException) {
-                // Service not running and app in background: nothing to stop.
-            }
+            context.stopService(Intent(context, RestTimerService::class.java))
         }
     }
 }

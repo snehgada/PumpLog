@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WorkoutTracker"
+rootProject.name = "PumpLog"
 include(":app")

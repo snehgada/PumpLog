@@ -90,6 +90,8 @@ import com.workouttracker.domain.LiveSessionRules
 import com.workouttracker.domain.SetType
 import com.workouttracker.domain.WeightUnit
 import com.workouttracker.domain.Weights
+import com.workouttracker.ui.components.SystemSettings
+import com.workouttracker.ui.components.rememberAlertReadiness
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -189,7 +191,10 @@ private fun WorkoutScreen(
             )
         },
         bottomBar = {
-            state.rest?.let { rest -> RestBar(rest.endsAt, now, rest.exerciseName, onAdd = { vm.addRest(15) }, onSkip = vm::skipRest) }
+            // Hide a rest that has already run out (e.g. the app was paused by the phone and is just catching up).
+            state.rest?.takeIf { now.isBefore(it.endsAt) }?.let { rest ->
+                RestBar(rest.endsAt, now, rest.exerciseName, onAdd = { vm.addRest(15) }, onSkip = vm::skipRest)
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -201,6 +206,9 @@ private fun WorkoutScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (!state.editing) {
+                item { AlertWarning(state.batteryTipDismissed, onDismissBatteryTip = vm::dismissBatteryTip) }
+            }
             item { ProgressSegments(state) }
             items(state.exercises, key = { it.plannedId }) { exercise ->
                 if (state.expandedId == exercise.plannedId) {
@@ -250,6 +258,40 @@ private fun WorkoutScreen(
         )
     }
 }
+
+/** Shown only when something would stop the "Rest's up" alert from reaching a locked phone. */
+@Composable
+private fun AlertWarning(batteryTipDismissed: Boolean, onDismissBatteryTip: () -> Unit) {
+    val readiness = rememberAlertReadiness()
+    val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
+    val (message, action, onAction, dismissible) = when {
+        !readiness.notificationsAllowed -> WarningContent(
+            stringResource(R.string.warn_notifications_off),
+            stringResource(R.string.turn_on),
+            { SystemSettings.notifications(context) },
+            false,
+        )
+        !readiness.backgroundAllowed && !batteryTipDismissed -> WarningContent(
+            stringResource(R.string.warn_background),
+            stringResource(R.string.open_settings),
+            { SystemSettings.appDetails(context) },
+            true,
+        )
+        else -> return
+    }
+    Surface(shape = RoundedCornerShape(16.dp), color = colors.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 4.dp)) {
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = colors.onSecondaryContainer)
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                if (dismissible) TextButton(onClick = onDismissBatteryTip) { Text(stringResource(R.string.dismiss), color = colors.onSecondaryContainer) }
+                TextButton(onClick = onAction) { Text(action, color = colors.secondary) }
+            }
+        }
+    }
+}
+
+private data class WarningContent(val message: String, val action: String, val onAction: () -> Unit, val dismissible: Boolean)
 
 @Composable
 private fun ProgressSegments(state: WorkoutUiState) {
