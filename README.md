@@ -109,3 +109,7 @@ PLAN.md          Design decisions, data model and milestone notes
 
 The app ships with the author's own five-day split pre-loaded on first launch (`data/seed/SeedRoutines.kt`); every
 routine can be edited, reordered, deleted or replaced in the app.
+
+## License
+
+[MIT](LICENSE) © 2026 Sneh Gada
