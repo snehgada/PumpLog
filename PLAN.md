@@ -134,6 +134,27 @@ Emulator (disk is tight, so shrink its storage; needs ~7.4 GB free):
 - Phone check (2026-11-12): "Test rest alert" with the phone locked arrived, with background activity still restricted.
   Still worth watching during a real workout, where rests are 1.5–3 min rather than 10 s.
 
+- **5 — done** (branch `milestone-5`, checked on the emulator 2026-11-12, release build).
+  - Weight steps in Settings: barbell/cable/machine and dumbbell (per dumbbell) increments, offered in kg or lb.
+  - Display fixes: "Last time" shows the unit; Progress history chips wrap so drop sets show in full; History chart
+    shows the month under the first week of each month; a rest that leads into a swapped exercise now names it.
+  - Home-screen widget (Jetpack Glance): between workouts shows the next routine, its size and rotation progress, with
+    Start (opens straight into a new workout of that routine); during a workout turns lime with sets logged,
+    "Resting until …" or start time, and Resume. Compact (2×2) and wide (4×2+) layouts. Kept up to date by
+    `WidgetSync` plus the widget observing the data itself.
+  - Release build 1.0 (versionCode 2): R8-shrunk (4.2 MB vs 26 MB debug), signed with this Mac's debug key — the same
+    certificate as the installed builds — so it updates in place and keeps data. **Back up `~/.android/debug.keystore`**:
+    without it, future builds can't be installed over this app.
+  - Not verified: the compact 2×2 widget layout (only the 4×2 was placed on the emulator). The widget picker shows a
+    loading spinner as its preview (Glance's default).
+
+### Release build
+```bash
+export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
+./gradlew assembleRelease       # app/build/outputs/apk/release/app-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
 ## Design changes (done 2026-11-08)
 - Import screen removed.
 - Today now shows the rotation (done / next / later) instead of a weekday strip, plus "Do a different routine today".

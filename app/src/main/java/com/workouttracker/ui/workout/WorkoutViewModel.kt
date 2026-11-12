@@ -226,7 +226,8 @@ class WorkoutViewModel(
             SetRowUi(
                 index = i,
                 target = planned.targets.getOrNull(i),
-                lastTime = LiveSessionRules.lastTimeText(planned.lastTime.firstOrNull { it.setIndex == i }, unit),
+                lastTime = LiveSessionRules.lastTimeText(planned.lastTime.firstOrNull { it.setIndex == i }, unit)
+                    .let { if (it == "—") it else "$it ${unit.label}" },
                 weightText = weight,
                 repsText = reps,
                 logged = logged,
@@ -372,6 +373,9 @@ class WorkoutViewModel(
     fun closeSwap() = edits.update { it.copy(swapFor = null) }
 
     fun swapTo(plannedId: Long, target: ExerciseRef) {
+        // A rest already counting down for this exercise now leads into the swapped one.
+        val before = exerciseOf(plannedId)?.performed?.name
+        if (before != null) restTimer.renameNext(from = before, to = target.name)
         edits.update { it.copy(swaps = it.swaps + (plannedId to target), swapFor = null) }
         launchWrite { sessions.swap(sessionId, plannedId, target.id) }
     }

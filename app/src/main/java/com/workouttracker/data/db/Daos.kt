@@ -152,6 +152,13 @@ interface LoggedSetDao {
     @Query("SELECT * FROM logged_set WHERE sessionId = :sessionId ORDER BY plannedExerciseId, setIndex")
     fun observeSets(sessionId: Long): Flow<List<LoggedSetEntity>>
 
+    @Query("SELECT COUNT(*) FROM logged_set WHERE sessionId = :sessionId AND type != 'WARMUP'")
+    suspend fun countWorkingSets(sessionId: Long): Int
+
+    /** Changes whenever any set is logged or removed; used to refresh the home-screen widget. */
+    @Query("SELECT COUNT(*) FROM logged_set")
+    fun observeTotalSets(): Flow<Int>
+
     @Query(
         """
         SELECT seg.* FROM set_segment seg

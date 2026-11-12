@@ -2,7 +2,9 @@
 
 package com.workouttracker.ui.settings
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +53,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.workouttracker.AppContainer
 import com.workouttracker.R
 import com.workouttracker.data.settings.SettingsRepository
+import com.workouttracker.domain.IncrementChoices
+import com.workouttracker.domain.Increments
 import com.workouttracker.domain.WeightUnit
+import com.workouttracker.domain.Weights
 import com.workouttracker.timer.RestState
 import com.workouttracker.timer.RestTimer
 import com.workouttracker.ui.components.SystemSettings
@@ -65,9 +72,19 @@ class SettingsViewModel(
 ) : ViewModel() {
     val unit: StateFlow<WeightUnit> = settings.weightUnit.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeightUnit.KG)
     val rest: StateFlow<RestState?> = restTimer.state
+    val increments: StateFlow<Increments?> = settings.increments.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setUnit(unit: WeightUnit) {
         viewModelScope.launch { settings.setWeightUnit(unit) }
+    }
+
+    fun setBarbellStep(grams: Int) = updateIncrements { it.copy(barbellGrams = grams) }
+
+    fun setDumbbellStep(grams: Int) = updateIncrements { it.copy(dumbbellGrams = grams) }
+
+    private fun updateIncrements(change: (Increments) -> Increments) {
+        val current = increments.value ?: return
+        viewModelScope.launch { settings.setIncrements(change(current)) }
     }
 
     fun testAlert(label: String) = restTimer.testAlert(label = label)
@@ -84,6 +101,7 @@ fun SettingsRoute(container: AppContainer, onBack: () -> Unit) {
     val vm: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val unit by vm.unit.collectAsStateWithLifecycle()
     val rest by vm.rest.collectAsStateWithLifecycle()
+    val increments by vm.increments.collectAsStateWithLifecycle()
     val readiness = rememberAlertReadiness()
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
@@ -134,6 +152,15 @@ fun SettingsRoute(container: AppContainer, onBack: () -> Unit) {
                         }
                     }
                     Text(stringResource(R.string.units_note), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+            }
+            increments?.let { inc ->
+                item {
+                    Section(stringResource(R.string.weight_steps)) {
+                        Text(stringResource(R.string.weight_steps_note), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        StepChoice(stringResource(R.string.step_barbell), inc.barbellGrams, unit, onPick = vm::setBarbellStep)
+                        StepChoice(stringResource(R.string.step_dumbbell), inc.dumbbellGrams, unit, onPick = vm::setDumbbellStep)
+                    }
                 }
             }
             item {
@@ -191,6 +218,27 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             content()
+        }
+    }
+}
+
+@Composable
+private fun StepChoice(label: String, grams: Int, unit: WeightUnit, onPick: (Int) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val options = IncrementChoices.forUnit(unit)
+    val selected = IncrementChoices.closest(grams, unit)
+    val unitLabel = stringResource(if (unit == WeightUnit.KG) R.string.unit_kg else R.string.unit_lb)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            options.forEach { option ->
+                FilterChip(
+                    selected = option == selected,
+                    onClick = { onPick(option) },
+                    label = { Text("+${Weights.format(option, unit)} $unitLabel") },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colors.primary, selectedLabelColor = colors.onPrimary),
+                )
+            }
         }
     }
 }

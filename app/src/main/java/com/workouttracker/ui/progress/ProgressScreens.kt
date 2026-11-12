@@ -1,10 +1,12 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.workouttracker.ui.progress
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -258,17 +260,16 @@ private fun SessionCard(session: ExerciseSession, unit: WeightUnit, dateFormat: 
                 Text(session.date.format(dateFormat), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Text(ExerciseProgress.formatVolume(volume, unit), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Chips wrap onto a new line instead of being squeezed, so drop sets ("5 × 25 → 4 × 20") show in full.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 session.sets.sortedBy { it.setIndex }.forEach { set ->
                     Text(
                         LiveSessionRules.lastTimeText(set, unit),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (set.type == SetType.WARMUP) colors.outline else colors.onSurface,
-                        maxLines = 1,
                         modifier = Modifier
-                            .weight(1f)
                             .background(colors.surfaceContainerHigh, RoundedCornerShape(8.dp))
-                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                            .padding(vertical = 6.dp, horizontal = 8.dp),
                     )
                 }
             }

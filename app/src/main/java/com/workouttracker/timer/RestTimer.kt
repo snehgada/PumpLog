@@ -35,6 +35,12 @@ class RestTimer(private val context: Context, private val clock: Clock) {
         set(current.copy(endsAt = ends))
     }
 
+    /** If the rest in progress leads into [from], make it lead into [to] instead (after a swap). */
+    fun renameNext(from: String, to: String) {
+        val current = _state.value ?: return
+        if (current.exerciseName == from && from != to) set(current.copy(exerciseName = to))
+    }
+
     fun skip() {
         if (_state.value == null) return
         _state.value = null

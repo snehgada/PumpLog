@@ -268,6 +268,7 @@ private fun WeeklyChart(state: HistoryUiState, onMetric: (ChartMetric) -> Unit) 
     }
     val max = (values.maxOrNull() ?: 0L).coerceAtLeast(1L)
     val labelFormat = remember { DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()) }
+    val monthFormat = remember { DateTimeFormatter.ofPattern("MMM", Locale.getDefault()) }
     Surface(shape = RoundedCornerShape(18.dp), color = colors.surfaceContainer) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -328,11 +329,16 @@ private fun WeeklyChart(state: HistoryUiState, onMetric: (ChartMetric) -> Unit) 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 state.bars.forEachIndexed { i, week ->
                     Text(
-                        if (i == 0 || week.weekStart.dayOfMonth <= 7) week.weekStart.format(labelFormat) else week.weekStart.dayOfMonth.toString(),
+                        // Day on the first line; the month underneath where it starts (first bar or a new month).
+                        if (i == 0 || week.weekStart.dayOfMonth <= 7) {
+                            "${week.weekStart.dayOfMonth}\n${week.weekStart.format(monthFormat)}"
+                        } else {
+                            week.weekStart.dayOfMonth.toString()
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.outline,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
+                        maxLines = 2,
                         modifier = Modifier.weight(1f),
                     )
                 }

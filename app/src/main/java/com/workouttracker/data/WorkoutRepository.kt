@@ -8,15 +8,20 @@ import com.workouttracker.data.db.SessionStatsRow
 import com.workouttracker.data.seed.SeedRoutines
 import com.workouttracker.data.seed.Seeder
 import com.workouttracker.data.settings.SettingsRepository
+import com.workouttracker.domain.Rotation
 import com.workouttracker.domain.SessionStats
 import com.workouttracker.domain.SessionStatus
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
 fun SessionStatsRow.toStats() = SessionStats(date, status, startedAt, finishedAt, workingSets, volumeGramReps)
+
+/** The next routine and its 0-based place in a rotation of [total] routines. */
+data class NextUp(val routine: RoutineSummary, val position: Int, val total: Int)
 
 /** Result of trying to skip a routine. */
 sealed interface SkipResult {
@@ -44,6 +49,19 @@ class WorkoutRepository(
     }
 
     fun observeRoutineSummaries(): Flow<List<RoutineSummary>> = routineDao.observeSummaries()
+
+    /** The routine next in the rotation right now, with where the rotation stands, or null if there are none. */
+    suspend fun nextInRotation(): NextUp? {
+        val routines = routineDao.observeSummaries().first()
+        val latest = sessionDao.observeLatestRotationEntry().first()
+        val nextId = Rotation.next(routines.map { it.id }, latest?.routineId) ?: return null
+        val index = routines.indexOfFirst { it.id == nextId }
+        return NextUp(routines[index], position = index, total = routines.size)
+    }
+
+    suspend fun workingSetsLogged(sessionId: Long): Int = db.loggedSetDao().countWorkingSets(sessionId)
+
+    fun observeTotalSets(): Flow<Int> = db.loggedSetDao().observeTotalSets()
 
     fun observeLatestRotationEntry(): Flow<SessionEntity?> = sessionDao.observeLatestRotationEntry()
 

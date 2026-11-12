@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.workouttracker.AppContainer
 import com.workouttracker.R
+import com.workouttracker.data.StartResult
 import com.workouttracker.ui.history.HistoryRoute
 import com.workouttracker.ui.progress.ExerciseProgressRoute
 import com.workouttracker.ui.progress.ProgressRoute
@@ -70,7 +71,7 @@ private enum class Tab(val route: String, @StringRes val label: Int, @DrawableRe
 }
 
 @Composable
-fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0) {
+fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0, startNextRequests: Int = 0) {
     // Seed first, then decide where to start: First launch until it has been dismissed once.
     var start by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
@@ -94,6 +95,22 @@ fun AppNavigation(container: AppContainer, openWorkoutRequests: Int = 0) {
         if (navController.currentBackStackEntry?.destination?.route != Routes.WORKOUT) {
             navController.navigate(route) { launchSingleTop = true }
         }
+    }
+    // Widget "Start": open the workout already in progress, or start the next routine in the rotation.
+    // Ignored until First launch has been dismissed.
+    LaunchedEffect(startNextRequests) {
+        if (startNextRequests == 0 || startRoute == Routes.WELCOME) return@LaunchedEffect
+        val sessions = container.sessionRepository
+        val sessionId = sessions.inProgress()?.id ?: run {
+            val next = container.workoutRepository.nextInRotation() ?: return@LaunchedEffect
+            val today = java.time.LocalDate.now(container.clock)
+            when (val result = sessions.start(next.routine.id, today, container.clock.instant())) {
+                is StartResult.Started -> result.sessionId
+                is StartResult.AlreadyInProgress -> result.sessionId
+                StartResult.RoutineNotFound -> return@LaunchedEffect
+            }
+        }
+        navController.navigate(Routes.workout(sessionId)) { launchSingleTop = true }
     }
     val currentRoute = backStack?.destination?.route
     val showTabs = Tab.entries.any { it.route == currentRoute }
